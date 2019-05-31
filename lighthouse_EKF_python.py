@@ -27,11 +27,11 @@ class StateTruth:
         vy = state_truth_prev.vy + (math.sin(state_truth_prev.theta) * ax + math.cos(state_truth_prev.theta) * ay) * dt
         return StateTruth(x, y, theta, vx, vy)
 
-    def compute_anchor_meas(X_a, state_truth, state_truth_prev, meas_record):
-        # calculates anchor measurements based on the true theta state of the
-        # robot. X_a is the set of anchor point locations.
+    # calculates anchor measurements based on the true theta state of the
+    # robot. X_a is the set of anchor point locations.
+    def compute_anchor_meas(X_a, state_truth, state_truth_prev, meas_record, state_estimate):
 
-        MATCH_THRESH = 0.02
+        MATCH_THRESH = 0
         PI = 3.1415927
         num_anchors = len(X_a)
 
@@ -48,16 +48,11 @@ class StateTruth:
         # ds = np.linalg.norm(X_a - np.tile([state_truth.x,state_truth.y], (num_anchors, 1)), 2, 1)
 
         # find a phi that matches current
-        phi_robot_k = (state_truth.theta + PI + PI) % (2 * PI) - PI
+        phi_robot_k = (state_truth.theta + 2 * PI) % (2 * PI) - PI
         phi_robot_vec_k = np.tile(phi_robot_k, (num_anchors, 1))       # stacked vector of robot orientation
 
-        phi_robot_prev = (state_truth_prev.theta + PI + PI) % (2 * PI) - PI
+        phi_robot_prev = (state_truth_prev.theta + 2 * PI) % (2 * PI) - PI
         phi_robot_vec_prev = np.tile(phi_robot_prev, (num_anchors, 1))     # stacked vector of robot orientation
-
-        # abs(phis - repmat(phi_robot,num_anchors,1))
-        # np.absolute(phis_k - np.tile(phi_robot_k, (num_anchors, 1)))
-        # (mod(phis_k - phi_robot_vec_k + PI,2*PI))- PI;
-        # mod(phis_prev - phi_robot_vec_prev+ PI,2*PI)- PI;
 
         # TODO: Switch to transposing function
         if len(np.shape(phis_k)) == 1:
@@ -66,7 +61,7 @@ class StateTruth:
 
         phi_product = np.multiply((phis_k - phi_robot_vec_k + PI) % (2 * PI) - PI,
                                   (phis_prev - phi_robot_vec_prev + PI) % (2 * PI) - PI)
-        match_idx = phi_product <= 0
+        match_idx = phi_product <= MATCH_THRESH
         # match_idx = abs(phis_k - repmat(phi_robot_k,num_anchors,1)) < MATCH_THRESH
         phi_matches = []
         match_locs = []
@@ -75,16 +70,16 @@ class StateTruth:
                 phi_matches.append(phis_k[i][0])
                 match_locs.append(X_a[i])
 
+        # If the robot didn't cross an anchor
         if len(phi_matches) == 0:
             lighthouse = False
             phi_final = 100
+        # If the robot did cross an anchor
         else:
             lighthouse = True
-
-            if len(np.shape(meas_record)) == 1:
-                meas_record = [meas_record]
-
-            meas_record.append([state_truth.x, state_truth.y,
+            # Store where we think the robot is and which anchor it crossed
+            # TODO: Change state_truth to state_estimate
+            meas_record.append([xp_obj.x, xp_obj.y,
                                 match_locs[0][0], match_locs[0][1]])       # store measurement vector
             phi_final = phi_matches[0]
         return lighthouse, phi_final, meas_record
@@ -96,8 +91,8 @@ dt = 0.01
 P_l = np.array([[1, 0, 0],
                 [0, 1, 0],
                 [0, 0, 1]])   # covariance of lighthouse states
-x_l0 = 1
-y_l0 = 1
+x_l_0 = 1
+y_l_0 = 1
 PI = 3.1415927
 
 iterations = 1000
@@ -111,17 +106,22 @@ ax = np.sin(t)
 ax[0] = 1
 ax[1:timesteps] = .1 * np.ones(timesteps - 1);
 """
-# the above and below ax expressions are equivalent (don't know)
+
+# real ax, ay, omega
 ax = np.full(timesteps, .1)
 ax[0] = 1
 ay = np.zeros(timesteps)
 omega = np.full(timesteps, 2)
 
+# measured ax, ay, omega
+omega_m = []
+ax_m = []
+ay_m = []
+
 # anchor locations
 n_anchors = 3
 area_size = 10      # length of one side of potential experiment area in meters
-
-X_a = np.random.rand(n_anchors, 2) * 10
+X_a = np.random.rand(n_anchors, 2) * area_size      # matrix of anchors in 2D
 # X_a = np.array([[0.5773, 0.31849]])
 # X_a(1,:) = [0.234076005284792,6.43920174599930]
 # X_a = np.array([[0.5773, 0.31849], [0.234076005284792, 6.43920174599930], [4, 5]])
@@ -133,9 +133,12 @@ omega_n = 0.01
 light_n = 0.04
 compass_n = 0.001
 
+# actual starting position of lighthouse/beacon robot
 state_truth_arr = [StateTruth(5, 5, 0, 0, 0)]
 state_truth_vec = state_truth_arr[0].vectorize()[:, None]
 
+# initial measured starting position
+# initial measurement is going to be the same as state truth
 xm_vec = np.copy(state_truth_vec)
 xm_obj = [state_truth_arr[0]]
 
@@ -145,6 +148,7 @@ sig_th0 = 0.01      # initial uncertainty of z
 sig_vx0 = 0.001     # initial uncertainty of vx
 sig_vy0 = 0.001     # initial uncertainty of vy
 
+# covariance of measurements
 Pm = [np.diag([sig_x0, sig_y0, sig_th0, sig_vx0, sig_vy0])]
 
 # Don't quite understand why this is * 10 instead of just inputting the number desired
@@ -166,32 +170,22 @@ anchor_counter = 0
 Pp = [np.zeros((5, 5))]
 meas_diff = [0]
 light_noise = [0]
-anchor_record = [0, 0, 0, 0]
-
-omega_m = []
-ax_m = []
-ay_m = []
+anchor_record = [[0, 0, 0, 0]]
 
 # start sim loop with estimation
 for k in range(1, timesteps):
-    # step true state
+    # step true state and save its vector
     state_truth_arr.append(StateTruth.step_dynamics_ekf(state_truth_arr[k - 1], omega[k - 1], ax[k - 1], ay[k - 1], dt))
-
-    # save vector of true state
     state_truth_vec = np.hstack((state_truth_vec, StateTruth.vectorize(state_truth_arr[k])[:, None]))
 
-    # corrupt IMU inputs with noise
-
+    # corrupt IMU inputs with noise (aka sensor measurements will have some noise)
     omega_m.append(omega[k - 1] + np.random.randn() * omega_n)
     ax_m.append(ax[k - 1] + np.random.randn() * ax_n)
     ay_m.append(ay[k - 1] + np.random.randn() * ay_n)
-    # omega_m.append(omega[k - 1] + .1 * omega_n)
-    # ax_m.append(ax[k - 1] + .1 * ax_n)
-    # ay_m.append(ay[k - 1] + .1 * ay_n)
 
-    # Prior Prediction step
+    # Prior update/Prediction step
 
-    # Predict Prior xp
+    # Calculate Xp using previous measured x (aka xm)
     xp_obj = StateTruth.step_dynamics_ekf(xm_obj[k - 1], omega_m[k - 1], ax_m[k - 1], ay_m[k - 1], dt)
     xp_vec = StateTruth.vectorize(xp_obj)
 
@@ -213,23 +207,18 @@ for k in range(1, timesteps):
          [0, 0, 0, dt * math.cos(xm_obj[k-1].theta), -dt * math.sin(xm_obj[k-1].theta)]]
 
     # calculate Pp(k)
-    # Pm(:,:,k-1)
-    # print("np.dot(L, Q):", np.dot(L, Q))
-    # print("np.dot(np.dot(L, Q), np.transpose(L)):", np.dot(np.dot(L, Q), np.transpose(L)))
     Pp.append(np.dot(np.dot(A, Pm[k - 1]), np.transpose(A)) + np.dot(np.dot(L, Q), np.transpose(L)))
+    # decide whether the beacon robot is crossing a lighthouse
     lighthouse_available, phi, anchor_record = StateTruth.compute_anchor_meas(X_a, state_truth_arr[k],
-                                                                              state_truth_arr[k-1], anchor_record)
+                                                                              state_truth_arr[k-1], anchor_record,
+                                                                              xp_obj)
 
     # decide if lighthouse measurement is available
     # if mod(k*dt, lighthouse_dt)==0
     if lighthouse_available:
-        lighthouse_available = True     # lighthouse measurement is available
+        # lighthouse measurement is available
 
         # choose anchor
-
-        # These lines don't do anything so I don't know why they are here
-        # x_a = X_a[anchor_counter, 0]
-        # y_a = X_a[anchor_counter, 1]
         anchor_counter = (anchor_counter + 1) % n_anchors
 
         x_a = anchor_record[len(anchor_record) - 1][2]
@@ -252,9 +241,6 @@ for k in range(1, timesteps):
 
         # calculate H
 
-        # These lines don't do anything so I don't know why they're here
-        # xp_vec(1: 2)-[x_a; y_a]
-        # xp_vec(1: 2)-[x_a, y_a]
         # TODO: Switch to transposing function
         r = np.linalg.norm(np.array([xp_vec[0:2]]).T - [[x_a], [y_a]])
         angle = np.arctan2(xp_obj.y - y_a, xp_obj.x - x_a)
