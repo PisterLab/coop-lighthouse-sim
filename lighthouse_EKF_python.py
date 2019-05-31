@@ -79,7 +79,7 @@ class StateTruth:
             lighthouse = True
             # Store where we think the robot is and which anchor it crossed
             # TODO: Change state_truth to state_estimate
-            meas_record.append([xp_obj.x, xp_obj.y,
+            meas_record.append([state_estimate.x, state_estimate.y,
                                 match_locs[0][0], match_locs[0][1]])       # store measurement vector
             phi_final = phi_matches[0]
         return lighthouse, phi_final, meas_record
