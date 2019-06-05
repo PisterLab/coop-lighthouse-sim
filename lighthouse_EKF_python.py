@@ -2,6 +2,10 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 
+# TODO: Make a Lighthouse Robot class
+# TODO: Make a Drone class
+
+
 # State Truth class
 class StateTruth:
     def __init__(self, x=0, y=0, theta=0, vx=0, vy=0):
@@ -65,6 +69,8 @@ class StateTruth:
         # match_idx = abs(phis_k - repmat(phi_robot_k,num_anchors,1)) < MATCH_THRESH
         phi_matches = []
         match_locs = []
+
+        # Add the location of the anchor it matched with
         for i in range(len(match_idx)):
             if match_idx[i][0]:
                 phi_matches.append(phis_k[i][0])
@@ -74,11 +80,12 @@ class StateTruth:
         if len(phi_matches) == 0:
             lighthouse = False
             phi_final = 100
+
         # If the robot did cross an anchor
         else:
             lighthouse = True
+
             # Store where we think the robot is and which anchor it crossed
-            # TODO: Change state_truth to state_estimate
             meas_record.append([state_estimate.x, state_estimate.y,
                                 match_locs[0][0], match_locs[0][1]])       # store measurement vector
             phi_final = phi_matches[0]
@@ -96,7 +103,7 @@ y_l_0 = 1
 PI = 3.1415927
 
 iterations = 1000
-plot_run = False
+plot_run = True
 
 # setup input trajectory
 t = np.linspace(0, timesteps * dt, timesteps)
@@ -170,7 +177,7 @@ anchor_counter = 0
 Pp = [np.zeros((5, 5))]
 meas_diff = [0]
 light_noise = [0]
-anchor_record = [[0, 0, 0, 0]]
+anchor_record = [[0, 0, 0, 0]]      # list of anchor measurements in 2D
 
 # start sim loop with estimation
 for k in range(1, timesteps):
@@ -219,19 +226,15 @@ for k in range(1, timesteps):
         # lighthouse measurement is available
 
         # choose anchor
+        # currently useless, I guess we can just keep track of which anchor?
         anchor_counter = (anchor_counter + 1) % n_anchors
 
         x_a = anchor_record[len(anchor_record) - 1][2]
         y_a = anchor_record[len(anchor_record) - 1][3]
 
         # calculate noise corrupted measurement
-
-        # phi = atan2(state_truth(k).y - y_a, state_truth(k).x - x_a)
-
-        c_noise = np.random.randn() * compass_n
-        l_noise = np.random.randn() * math.sqrt(Pp[k - 1][2][2])
-        # c_noise = .1 * compass_n
-        # l_noise = .1 * math.sqrt(Pp[k - 1][2][2])
+        c_noise = np.random.randn() * compass_n     # compass noise
+        l_noise = np.random.randn() * math.sqrt(Pp[k - 1][2][2])        # lighthouse noise
         sig_l = math.sqrt(Pp[k - 1][2][2])
         # l_noise = randn * compass_n
         # l_noise = xp_obj.theta - phi     # this is the actual error of lighthouse i believe
@@ -240,15 +243,12 @@ for k in range(1, timesteps):
                       [((state_truth_arr[k].theta + c_noise + PI) % (2 * PI)) - PI]])
 
         # calculate H
-
         # TODO: Switch to transposing function
         r = np.linalg.norm(np.array([xp_vec[0:2]]).T - [[x_a], [y_a]])
         angle = np.arctan2(xp_obj.y - y_a, xp_obj.x - x_a)
-        H = [[-np.sin(angle) / r, np.cos(angle) / r, 0, 0, 0], [0, 0, 1, 0, 0]]
+        H = np.array([[-np.sin(angle) / r, np.cos(angle) / r, 0, 0, 0], [0, 0, 1, 0, 0]])
 
         # calculate M. I could potentially add two more entries: var(x_a), var(y_a)
-        # phi
-        # angle
         M = [[1, 0], [0, 1]]
 
         # calculate zhat
@@ -260,20 +260,19 @@ for k in range(1, timesteps):
 
         # Kalman gain
         # TODO: Switch to transposing function
-        K = np.dot(np.dot(Pp[k], np.array(H).T),
-                   np.linalg.inv(np.dot(np.dot(H, Pp[k]), np.array(H).T) + np.dot(np.dot(M, R), np.array(M).T)))
+        K = np.dot(np.dot(Pp[k], H.T),
+                   np.linalg.inv(np.dot(np.dot(H, Pp[k]), H.T) + np.dot(np.dot(M, R), np.array(M).T)))
     else:
         # calc noise corrupted measurement
-
         c_noise = np.random.rand() * compass_n
-        # c_noise = .1 * compass_n
+
         z = [((state_truth_arr[k].theta + c_noise + PI) % (2 * PI)) - PI]
 
         # calc zhat
         zhat = [xp_obj.theta]
 
         # calculate H
-        H = np.array([0, 0, 1, 0, 0])
+        H = np.array([[0, 0, 1, 0, 0]])
 
         # calc M
         M = 1
@@ -284,8 +283,8 @@ for k in range(1, timesteps):
 
         # Kalman gain
         # TODO: Switch to transposing function
-        K = np.dot(np.dot(Pp[k], np.array([H]).T),
-                   np.linalg.inv([np.dot(np.dot(H, Pp[k]), np.array([H]).T) + M * R * M]))
+        K = np.dot(np.dot(Pp[k], H.T),
+                   np.linalg.inv([np.dot(np.dot(H, Pp[k])[0], H.T) + M * R * M]))
 
     # xm
     # calculate measurement diff in order to wrap angles
@@ -321,59 +320,62 @@ for k in range(1, timesteps):
     Pm.append(np.dot(np.eye(5) - np.dot(K, H), Pp[k]))
 
 print("Debugging statement")
-# TODO: Figure out dashed lines
 
-plt.figure(1)
 
-plt.plot(state_truth_vec[0, :], state_truth_vec[1, :])
-plt.scatter(X_a[:, 0], X_a[:, 1])
-plt.plot(xm_vec[0, :], xm_vec[1, :])
-# n_measures = size(anchor_record);
-for i in range(1, len(anchor_record)):
-    x = anchor_record[i][0]
-    y = anchor_record[i][1]
-    x_a = anchor_record[i][2]
-    y_a = anchor_record[i][3]
-    delta = np.array([x_a, y_a]) - np.array([x, y])
-    plt.quiver(x, y, delta[0], delta[1], angles='xy', scale_units='xy', scale=1, width=0.001,
-               linestyle='dashed', color=['r', 'b', 'y', 'g', 'm'][i % 5])
+if plot_run:
+    plt.figure(1)
 
-plt.figure(2)
+    plt.plot(state_truth_vec[0, :], state_truth_vec[1, :])
+    plt.scatter(X_a[:, 0], X_a[:, 1])
+    plt.plot(xm_vec[0, :], xm_vec[1, :])
+    # n_measures = size(anchor_record);
+    for i in range(1, len(anchor_record)):
+        x = anchor_record[i][0]
+        y = anchor_record[i][1]
+        x_a = anchor_record[i][2]
+        y_a = anchor_record[i][3]
+        delta = np.array([x_a, y_a]) - np.array([x, y])
 
-# pm plots
-Pm = np.array(Pm)
-Pp = np.array(Pp)
+        # TODO: Figure out dashed lines
+        plt.quiver(x, y, delta[0], delta[1], angles='xy', scale_units='xy', scale=1, width=0.001,
+                   linestyle='dashed', color=['r', 'b', 'y', 'g', 'm'][i % 5])
 
-plt.subplot(2, 3, 1)
-plt.semilogy(Pm[:, 2, 2])
-plt.subplot(2, 3, 2)
-plt.semilogy(Pp[:, 2, 2])
+    plt.figure(2)
 
-plt.subplot(2, 3, 3)
-plt.semilogy(Pm[:, 0, 0])
-plt.subplot(2, 3, 4)
-plt.semilogy(Pm[:, 1, 1])
-plt.subplot(2, 3, 5)
-plt.semilogy(Pm[:, 3, 3])
-plt.subplot(2, 3, 6)
-plt.semilogy(Pm[:, 4, 4])
+    # pm plots
+    Pm = np.array(Pm)
+    Pp = np.array(Pp)
 
-plt.figure(3)
+    plt.subplot(2, 3, 1)
+    plt.semilogy(Pm[:, 2, 2])
+    plt.subplot(2, 3, 2)
+    plt.semilogy(Pp[:, 2, 2])
 
-# state plots
-plt.subplot(2, 3, 1)
-plt.plot(t, state_truth_vec[0, :], t, xm_vec[0, :])
+    plt.subplot(2, 3, 3)
+    plt.semilogy(Pm[:, 0, 0])
+    plt.subplot(2, 3, 4)
+    plt.semilogy(Pm[:, 1, 1])
+    plt.subplot(2, 3, 5)
+    plt.semilogy(Pm[:, 3, 3])
+    plt.subplot(2, 3, 6)
+    plt.semilogy(Pm[:, 4, 4])
 
-plt.subplot(2, 3, 2)
-plt.plot(t / dt, state_truth_vec[1, :], t / dt, xm_vec[1, :])
+    plt.figure(3)
 
-plt.subplot(2, 3, 3)
-plt.plot(t, state_truth_vec[2, :], t, xm_vec[2, :])
+    # state plots
+    plt.subplot(2, 3, 1)
+    plt.plot(t, state_truth_vec[0, :], t, xm_vec[0, :])
 
-plt.subplot(2, 3, 4)
-plt.plot(t, state_truth_vec[3, :], t, xm_vec[3, :])
+    plt.subplot(2, 3, 2)
+    plt.plot(t / dt, state_truth_vec[1, :], t / dt, xm_vec[1, :])
 
-plt.subplot(2, 3, 5)
-plt.plot(t, state_truth_vec[4, :], t, xm_vec[4, :])
+    plt.subplot(2, 3, 3)
+    plt.plot(t, state_truth_vec[2, :], t, xm_vec[2, :])
 
-plt.show()
+    plt.subplot(2, 3, 4)
+    plt.plot(t, state_truth_vec[3, :], t, xm_vec[3, :])
+
+    plt.subplot(2, 3, 5)
+    plt.plot(t, state_truth_vec[4, :], t, xm_vec[4, :])
+
+    plt.show()
