@@ -4,7 +4,10 @@ import matplotlib.pyplot as plt
 
 # TODO: Make a Lighthouse Robot class
 # TODO: Make a Drone class
+
 # TODO: Figure out what actually needs to be instance vs. static vs. temp
+# TODO: In other words, what is constant between the drones? What isn't? Out of everything, what needs to be recorded and kept?
+
 # TODO: Figure out what to do with StateTruth class
 
 
