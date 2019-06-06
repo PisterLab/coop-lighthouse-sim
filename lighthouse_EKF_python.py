@@ -1,18 +1,25 @@
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+import enum
 
 # TODO: Make a Lighthouse Robot class
 # TODO: Make a Drone class
 
 # TODO: Figure out what actually needs to be instance vs. static vs. temp
-# TODO: In other words, what is constant between the drones? What isn't? Out of everything, what needs to be recorded and kept?
 
 # TODO: Figure out what to do with StateTruth class
 
 
+class DroneType(enum.Enum):
+    lighthouse_robot = enum.auto()      # localizing itself and localizing anchor robots
+    measurement_robot = enum.auto()     # only taking measurements
+    anchor_robot = enum.auto()      # in place, acts as an anchor point
+
+
 class Drone:
-    def __init__(self, x=5, y=5, theta=0, vx=0, vy=0):
+    def __init__(self, x=5, y=5, theta=0, vx=0, vy=0, drone_type=DroneType.measurement_robot):
+        self.drone_type = drone_type
         self.t = np.linspace(0, timesteps * dt, timesteps)
 
         # initialize real ax, ay, omega
@@ -47,9 +54,9 @@ class Drone:
         self.anchor_counter = 0     # TODO: Is this necessary?
         self.anchor_record = [[0, 0, 0, 0]]
         self.Pp = [np.zeros((5, 5))]
-        self.sim_loop()
 
-    def sim_loop(self):
+    def run_lighthouse(self):
+        self.drone_type = DroneType.lighthouse_robot
         for k in range(1, timesteps):
             # step true state and save its vector
             self.state_truth_arr.append(StateTruth.step_dynamics_ekf(self.state_truth_arr[k - 1], self.omega[k - 1],
@@ -127,7 +134,7 @@ class Drone:
                                    [0, 0, 1, 0, 0]])
 
                 # calculate M. I could potentially add two more entries: var(x_a), var(y_a)
-                M = [[1, 0], [0, 1]]
+                M = np.array([[1, 0], [0, 1]])
 
                 # calculate zhat
                 zhat = np.array([[angle], [xp_obj.theta]])
@@ -139,7 +146,7 @@ class Drone:
                 # Kalman gain
                 # TODO: Switch to transposing function
                 kalman_gain = np.dot(np.dot(self.Pp[k], H_mat.T), np.linalg.inv(
-                    np.dot(np.dot(H_mat, self.Pp[k]), H_mat.T) + np.dot(np.dot(M, R_mat), np.array(M).T)))
+                    np.dot(np.dot(H_mat, self.Pp[k]), H_mat.T) + np.dot(np.dot(M, R_mat), M.T)))
             else:
                 # calc noise corrupted measurement
                 c_noise = np.random.rand() * compass_n
@@ -223,8 +230,6 @@ class StateTruth:
     # calculates anchor measurements based on the true theta state of the
     # robot. X_a is the set of anchor point locations.
     def compute_anchor_meas(X_a, state_truth, state_truth_prev, meas_record, state_estimate):
-
-        MATCH_THRESH = 0
         PI = 3.1415927
         num_anchors = len(X_a)
 
@@ -254,7 +259,7 @@ class StateTruth:
 
         phi_product = np.multiply((phis_k - phi_robot_vec_k + PI) % (2 * PI) - PI,
                                   (phis_prev - phi_robot_vec_prev + PI) % (2 * PI) - PI)
-        match_idx = phi_product <= MATCH_THRESH
+        match_idx = phi_product <= 0
         # match_idx = abs(phis_k - repmat(phi_robot_k,num_anchors,1)) < MATCH_THRESH
         phi_matches = []
         match_locs = []
@@ -324,7 +329,9 @@ meas_diff = [0]     # UNUSED
 light_noise = [0]   # UNUSED
 
 d1 = Drone()
+d1.run_lighthouse()
 d2 = Drone(7, 7)
+d2.run_lighthouse()
 drones = [d1, d2]
 print("Debugging statement")
 
