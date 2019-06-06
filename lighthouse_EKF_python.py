@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 
 class Drone:
-    def __init__(self):
+    def __init__(self, x=5, y=5, theta=0, vx=0, vy=0):
         self.t = np.linspace(0, timesteps * dt, timesteps)
 
         # initialize real ax, ay, omega
@@ -26,7 +26,7 @@ class Drone:
         self.ay_m = []
 
         # actual starting position of drone: x, y, theta, vx, vy
-        self.state_truth_arr = [StateTruth(5, 5, 0, 0, 0)]      # TODO: Change this to something you can initialize
+        self.state_truth_arr = [StateTruth(x, y, theta, vx, vy)]      # TODO: Change this to something you can initialize
         self.state_truth_vec = self.state_truth_arr[0].vectorize()[:, None]
 
         # initial measured starting position
@@ -44,7 +44,7 @@ class Drone:
         self.Pm = [np.diag([self.sig_x0, self.sig_y0, self.sig_th0, self.sig_vx0, self.sig_vy0])]
 
         self.lighthouse_available = False
-        self.anchor_counter = 0
+        self.anchor_counter = 0     # TODO: Is this necessary?
         self.anchor_record = [[0, 0, 0, 0]]
         self.Pp = [np.zeros((5, 5))]
         self.sim_loop()
@@ -179,22 +179,19 @@ class Drone:
                 self.diff[0] = ((self.diff[0] + PI) % (2 * PI)) - PI
 
             # TODO: Switch to transposing function
-            self.xp_vec_trans = np.array([self.xp_vec[:]]).T
+            xp_vec_trans = np.array([self.xp_vec[:]]).T
 
-            self.k_diff_trans = np.dot(self.K, self.diff)
+            k_diff_trans = np.dot(self.K, self.diff)
 
             # TODO: Switch to transposing function
-            if len(np.shape(self.k_diff_trans)) == 1:
-                self.k_diff_trans = np.array([self.k_diff_trans]).T
-            self.add_xm_vec = np.array(self.xp_vec_trans + self.k_diff_trans)
+            if len(np.shape(k_diff_trans)) == 1:
+                k_diff_trans = np.array([k_diff_trans]).T
+            add_xm_vec = np.array(xp_vec_trans + k_diff_trans)
 
-            self.xm_vec = np.hstack((self.xm_vec, self.add_xm_vec))
+            self.xm_vec = np.hstack((self.xm_vec, add_xm_vec))
             self.xm_obj.append(StateTruth.devectorize(self.xm_vec[:, k]))
 
             # Pm
-            if len(np.shape(self.H)) == 1:
-                self.H = np.array([self.H])
-
             self.Pm.append(np.dot(np.eye(5) - np.dot(self.K, self.H), self.Pp[k]))
 
 
@@ -339,14 +336,14 @@ if plot_run:
     plt.plot(d.xm_vec[0, :], d.xm_vec[1, :])
     # n_measures = size(anchor_record);
     for i in range(1, len(d.anchor_record)):
-        x = d.anchor_record[i][0]
-        y = d.anchor_record[i][1]
+        x_d = d.anchor_record[i][0]
+        y_d = d.anchor_record[i][1]
         x_a = d.anchor_record[i][2]
         y_a = d.anchor_record[i][3]
-        delta = np.array([x_a, y_a]) - np.array([x, y])
+        delta = np.array([x_a, y_a]) - np.array([x_d, y_d])
 
         # TODO: Figure out dashed lines
-        plt.quiver(x, y, delta[0], delta[1], angles='xy', scale_units='xy', scale=1, width=0.001,
+        plt.quiver(x_d, y_d, delta[0], delta[1], angles='xy', scale_units='xy', scale=1, width=0.001,
                    linestyle='dashed', color=['r', 'b', 'y', 'g', 'm'][i % 5])
 
     plt.figure(2)
