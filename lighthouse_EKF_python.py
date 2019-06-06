@@ -26,7 +26,7 @@ class Drone:
         self.ay_m = []
 
         # actual starting position of drone: x, y, theta, vx, vy
-        self.state_truth_arr = [StateTruth(x, y, theta, vx, vy)]      # TODO: Change this to something you can initialize
+        self.state_truth_arr = [StateTruth(x, y, theta, vx, vy)]
         self.state_truth_vec = self.state_truth_arr[0].vectorize()[:, None]
 
         # initial measured starting position
@@ -43,7 +43,7 @@ class Drone:
         # covariance of measurements
         self.Pm = [np.diag([self.sig_x0, self.sig_y0, self.sig_th0, self.sig_vx0, self.sig_vy0])]
 
-        self.lighthouse_available = False
+        # lighthouse_available = False      # default variable
         self.anchor_counter = 0     # TODO: Is this necessary?
         self.anchor_record = [[0, 0, 0, 0]]
         self.Pp = [np.zeros((5, 5))]
@@ -65,123 +65,123 @@ class Drone:
             # Prior update/Prediction step
 
             # Calculate Xp using previous measured x (aka xm)
-            self.xp_obj = StateTruth.step_dynamics_ekf(self.xm_obj[k - 1], self.omega_m[k - 1], self.ax_m[k - 1],
-                                                       self.ay_m[k - 1], dt)
-            self.xp_vec = StateTruth.vectorize(self.xp_obj)
+            xp_obj = StateTruth.step_dynamics_ekf(self.xm_obj[k - 1], self.omega_m[k - 1], self.ax_m[k - 1],
+                                                  self.ay_m[k - 1], dt)
+            xp_vec = StateTruth.vectorize(xp_obj)
 
-            self.sig_l = 0.0001     # TODO: Figure out whether this is actually instance variable
+            # sig_l = 0.0001     # Default variable
 
             # Calculate A(k-1)
-            self.A = [[1, 0, 0, dt, 0],
+            A = [[1, 0, 0, dt, 0],
                  [0, 1, 0, 0, dt],
                  [0, 0, 1, 0, 0],
                  [0, 0, (-math.sin(self.xm_obj[k - 1].theta) * self.ax_m[k - 1] - math.cos(self.xm_obj[k - 1].theta) *
                          self.ay_m[k - 1]) * dt, 1, 0],
-                 [0, 0,(math.cos(self.xm_obj[k - 1].theta) * self.ax_m[k - 1] - math.sin(self.xm_obj[k - 1].theta) *
-                        self.ay_m[k - 1]) * dt, 0, 1]]
+                 [0, 0, (math.cos(self.xm_obj[k - 1].theta) * self.ax_m[k - 1] - math.sin(self.xm_obj[k - 1].theta) *
+                         self.ay_m[k - 1]) * dt, 0, 1]]
 
             # linearized prediction for debugging
             # x_lin = A * xm_vec(:,k-1) + xm_vec(:,k-1)
 
             # Calculate L(k-1)
-            self.L = [[dt, 0, 0, 0, 0],
+            L = [[dt, 0, 0, 0, 0],
                  [0, dt, 0, 0, 0],
                  [0, 0, dt, 0, 0],
                  [0, 0, 0, -dt * math.sin(self.xm_obj[k - 1].theta), -dt * math.cos(self.xm_obj[k - 1].theta)],
                  [0, 0, 0, dt * math.cos(self.xm_obj[k - 1].theta), -dt * math.sin(self.xm_obj[k - 1].theta)]]
 
             # calculate Pp(k)
-            self.Pp.append(np.dot(np.dot(self.A, self.Pm[k - 1]), np.transpose(self.A)) + np.dot(np.dot(self.L, Q),
-                                                                                                 np.transpose(self.L)))
+            self.Pp.append(np.dot(np.dot(A, self.Pm[k - 1]), np.transpose(A)) + np.dot(np.dot(L, Q),
+                                                                                                 np.transpose(L)))
             # decide whether the beacon robot is crossing a lighthouse
-            self.lighthouse_available, self.phi, self.anchor_record = StateTruth.compute_anchor_meas(
-                X_a, self.state_truth_arr[k], self.state_truth_arr[k - 1], self.anchor_record, self.xp_obj)
+            lighthouse_available, phi, self.anchor_record = StateTruth.compute_anchor_meas(
+                X_a, self.state_truth_arr[k], self.state_truth_arr[k - 1], self.anchor_record, xp_obj)
 
             # decide if lighthouse measurement is available
             # if mod(k*dt, lighthouse_dt)==0
-            if self.lighthouse_available:
+            if lighthouse_available:
                 # lighthouse measurement is available
 
                 # choose anchor
                 # currently useless, I guess we can just keep track of which anchor?
                 self.anchor_counter = (self.anchor_counter + 1) % n_anchors
 
-                self.x_a = self.anchor_record[len(self.anchor_record) - 1][2]
-                self.y_a = self.anchor_record[len(self.anchor_record) - 1][3]
+                x_a = self.anchor_record[len(self.anchor_record) - 1][2]
+                y_a = self.anchor_record[len(self.anchor_record) - 1][3]
 
                 # calculate noise corrupted measurement
-                self.c_noise = np.random.randn() * compass_n  # compass noise
-                self.l_noise = np.random.randn() * math.sqrt(self.Pp[k - 1][2][2])  # lighthouse noise
-                self.sig_l = math.sqrt(self.Pp[k - 1][2][2])
+                c_noise = np.random.randn() * compass_n  # compass noise
+                l_noise = np.random.randn() * math.sqrt(self.Pp[k - 1][2][2])  # lighthouse noise
+                sig_l = math.sqrt(self.Pp[k - 1][2][2])
                 # l_noise = randn * compass_n
                 # l_noise = xp_obj.theta - phi     # this is the actual error of lighthouse i believe
 
-                self.z = np.array([[((self.phi + self.l_noise + PI) % (2 * PI)) - PI],
-                                   [((self.state_truth_arr[k].theta + self.c_noise + PI) % (2 * PI)) - PI]])
+                z = np.array([[((phi + l_noise + PI) % (2 * PI)) - PI],
+                                   [((self.state_truth_arr[k].theta + c_noise + PI) % (2 * PI)) - PI]])
 
                 # calculate H
                 # TODO: Switch to transposing function
-                self.r = np.linalg.norm(np.array([self.xp_vec[0:2]]).T - [[self.x_a], [self.y_a]])
-                self.angle = np.arctan2(self.xp_obj.y - self.y_a, self.xp_obj.x - self.x_a)
-                self.H = np.array([[-np.sin(self.angle) / self.r, np.cos(self.angle) / self.r, 0, 0, 0],
+                r = np.linalg.norm(np.array([xp_vec[0:2]]).T - [[x_a], [y_a]])
+                angle = np.arctan2(xp_obj.y - y_a, xp_obj.x - x_a)
+                H_mat = np.array([[-np.sin(angle) / r, np.cos(angle) / r, 0, 0, 0],
                                    [0, 0, 1, 0, 0]])
 
                 # calculate M. I could potentially add two more entries: var(x_a), var(y_a)
-                self.M = [[1, 0], [0, 1]]
+                M = [[1, 0], [0, 1]]
 
                 # calculate zhat
-                self.zhat = np.array([[self.angle], [self.xp_obj.theta]])
+                zhat = np.array([[angle], [xp_obj.theta]])
 
                 # calculate R(noise covariance matrix)
-                self.compass_w = 0.001 * 0.001
-                self.R = [[self.sig_l * self.sig_l, 0], [0, self.compass_w]]
+                compass_w = 0.001 * 0.001
+                R_mat = [[sig_l * sig_l, 0], [0, compass_w]]
 
                 # Kalman gain
                 # TODO: Switch to transposing function
-                self.K = np.dot(np.dot(self.Pp[k], self.H.T), np.linalg.inv(
-                    np.dot(np.dot(self.H, self.Pp[k]), self.H.T) + np.dot(np.dot(self.M, self.R), np.array(self.M).T)))
+                kalman_gain = np.dot(np.dot(self.Pp[k], H_mat.T), np.linalg.inv(
+                    np.dot(np.dot(H_mat, self.Pp[k]), H_mat.T) + np.dot(np.dot(M, R_mat), np.array(M).T)))
             else:
                 # calc noise corrupted measurement
-                self.c_noise = np.random.rand() * compass_n
+                c_noise = np.random.rand() * compass_n
 
-                self.z = [((self.state_truth_arr[k].theta + self.c_noise + PI) % (2 * PI)) - PI]
+                z = [((self.state_truth_arr[k].theta + c_noise + PI) % (2 * PI)) - PI]
 
                 # calc zhat
-                self.zhat = [self.xp_obj.theta]
+                zhat = [xp_obj.theta]
 
                 # calculate H
-                self.H = np.array([[0, 0, 1, 0, 0]])
+                H_mat = np.array([[0, 0, 1, 0, 0]])
 
                 # calc M
-                self.M = 1
+                M = 1
 
                 # calc R
-                self.compass_w = 0.001 * 0.001
-                self.R = self.compass_w
+                compass_w = 0.001 * 0.001
+                R_mat = compass_w
 
                 # Kalman gain
                 # TODO: Switch to transposing function
-                self.K = np.dot(np.dot(self.Pp[k], self.H.T),
-                           np.linalg.inv([np.dot(np.dot(self.H, self.Pp[k])[0], self.H.T) + self.M * self.R * self.M]))
+                kalman_gain = np.dot(np.dot(self.Pp[k], H_mat.T),
+                           np.linalg.inv([np.dot(np.dot(H_mat, self.Pp[k])[0], H_mat.T) + M * R_mat * M]))
 
             # xm
             # calculate measurement diff in order to wrap angles
-            self.diff = []
+            diff = []
 
-            if self.lighthouse_available:
-                self.diff.append(self.z[0] - self.zhat[0])
-                self.diff.append(self.z[1] - self.zhat[1])
+            if lighthouse_available:
+                diff.append(z[0] - zhat[0])
+                diff.append(z[1] - zhat[1])
 
-                self.diff[0] = ((self.diff[0] + PI) % (2 * PI)) - PI
-                self.diff[1] = ((self.diff[1] + PI) % (2 * PI)) - PI
+                diff[0] = ((diff[0] + PI) % (2 * PI)) - PI
+                diff[1] = ((diff[1] + PI) % (2 * PI)) - PI
             else:
-                self.diff.append(self.z[0] - self.zhat[0])
-                self.diff[0] = ((self.diff[0] + PI) % (2 * PI)) - PI
+                diff.append(z[0] - zhat[0])
+                diff[0] = ((diff[0] + PI) % (2 * PI)) - PI
 
             # TODO: Switch to transposing function
-            xp_vec_trans = np.array([self.xp_vec[:]]).T
+            xp_vec_trans = np.array([xp_vec[:]]).T
 
-            k_diff_trans = np.dot(self.K, self.diff)
+            k_diff_trans = np.dot(kalman_gain, diff)
 
             # TODO: Switch to transposing function
             if len(np.shape(k_diff_trans)) == 1:
@@ -192,7 +192,7 @@ class Drone:
             self.xm_obj.append(StateTruth.devectorize(self.xm_vec[:, k]))
 
             # Pm
-            self.Pm.append(np.dot(np.eye(5) - np.dot(self.K, self.H), self.Pp[k]))
+            self.Pm.append(np.dot(np.eye(5) - np.dot(kalman_gain, H_mat), self.Pp[k]))
 
 
 # State Truth class
@@ -302,7 +302,7 @@ X_a = np.random.rand(n_anchors, 2) * area_size      # matrix of anchors in 2D
 # X_a(1,:) = [0.234076005284792,6.43920174599930]
 # X_a = np.array([[0.5773, 0.31849], [0.234076005284792, 6.43920174599930], [4, 5]])
 
-# noise standard deviations     # TODO: Figure out if this is drone specific or overall
+# noise standard deviations
 ax_n = 0.08
 ay_n = 0.08
 omega_n = 0.01
@@ -310,7 +310,7 @@ light_n = 0.04
 compass_n = 0.001
 
 # Don't quite understand why this is * 10 instead of just inputting the number desired
-g_x = 0.001 * 10        # standard deviations       # TODO: Figure out if this is drone specific or overall
+g_x = 0.001 * 10        # standard deviations
 g_y = 0.001 * 10
 g_w = 0.001 * 10
 g_ax = 0.08
@@ -323,65 +323,67 @@ Q = np.diag(np.multiply(g, g))
 meas_diff = [0]     # UNUSED
 light_noise = [0]   # UNUSED
 
-d = Drone()
-
+d1 = Drone()
+d2 = Drone(7, 7)
+drones = [d1, d2]
 print("Debugging statement")
 
 
 if plot_run:
-    plt.figure(1)
+    for d in drones:
+        plt.figure(1)
 
-    plt.plot(d.state_truth_vec[0, :], d.state_truth_vec[1, :])
-    plt.scatter(X_a[:, 0], X_a[:, 1])
-    plt.plot(d.xm_vec[0, :], d.xm_vec[1, :])
-    # n_measures = size(anchor_record);
-    for i in range(1, len(d.anchor_record)):
-        x_d = d.anchor_record[i][0]
-        y_d = d.anchor_record[i][1]
-        x_a = d.anchor_record[i][2]
-        y_a = d.anchor_record[i][3]
-        delta = np.array([x_a, y_a]) - np.array([x_d, y_d])
+        plt.plot(d.state_truth_vec[0, :], d.state_truth_vec[1, :])
+        plt.scatter(X_a[:, 0], X_a[:, 1])
+        plt.plot(d.xm_vec[0, :], d.xm_vec[1, :])
+        # n_measures = size(anchor_record);
+        for i in range(1, len(d.anchor_record)):
+            x_d = d.anchor_record[i][0]
+            y_d = d.anchor_record[i][1]
+            anchor_x = d.anchor_record[i][2]
+            anchor_y = d.anchor_record[i][3]
+            delta = np.array([anchor_x, anchor_y]) - np.array([x_d, y_d])
 
-        # TODO: Figure out dashed lines
-        plt.quiver(x_d, y_d, delta[0], delta[1], angles='xy', scale_units='xy', scale=1, width=0.001,
-                   linestyle='dashed', color=['r', 'b', 'y', 'g', 'm'][i % 5])
+            # TODO: Figure out dashed lines
+            plt.quiver(x_d, y_d, delta[0], delta[1], angles='xy', scale_units='xy', scale=1, width=0.001,
+                       linestyle='dashed', color=['r', 'b', 'y', 'g', 'm'][i % 5])
 
-    plt.figure(2)
+        plt.figure(2)
 
-    # pm plots
-    Pm = np.array(d.Pm)
-    Pp = np.array(d.Pp)
+        # pm plots
+        Pm = np.array(d.Pm)
+        Pp = np.array(d.Pp)
 
-    plt.subplot(2, 3, 1)
-    plt.semilogy(Pm[:, 2, 2])
-    plt.subplot(2, 3, 2)
-    plt.semilogy(Pp[:, 2, 2])
+        plt.subplot(2, 3, 1)
+        plt.semilogy(Pm[:, 2, 2])
+        plt.subplot(2, 3, 2)
+        plt.semilogy(Pp[:, 2, 2])
 
-    plt.subplot(2, 3, 3)
-    plt.semilogy(Pm[:, 0, 0])
-    plt.subplot(2, 3, 4)
-    plt.semilogy(Pm[:, 1, 1])
-    plt.subplot(2, 3, 5)
-    plt.semilogy(Pm[:, 3, 3])
-    plt.subplot(2, 3, 6)
-    plt.semilogy(Pm[:, 4, 4])
+        plt.subplot(2, 3, 3)
+        plt.semilogy(Pm[:, 0, 0])
+        plt.subplot(2, 3, 4)
+        plt.semilogy(Pm[:, 1, 1])
+        plt.subplot(2, 3, 5)
+        plt.semilogy(Pm[:, 3, 3])
+        plt.subplot(2, 3, 6)
+        plt.semilogy(Pm[:, 4, 4])
 
-    plt.figure(3)
+        plt.figure(3)
 
-    # state plots
-    plt.subplot(2, 3, 1)
-    plt.plot(d.t, d.state_truth_vec[0, :], d.t, d.xm_vec[0, :])
+        # state plots
+        plt.subplot(2, 3, 1)
+        plt.plot(d.t, d.state_truth_vec[0, :], d.t, d.xm_vec[0, :])
 
-    plt.subplot(2, 3, 2)
-    plt.plot(d.t / dt, d.state_truth_vec[1, :], d.t / dt, d.xm_vec[1, :])
+        plt.subplot(2, 3, 2)
+        plt.plot(d.t / dt, d.state_truth_vec[1, :], d.t / dt, d.xm_vec[1, :])
 
-    plt.subplot(2, 3, 3)
-    plt.plot(d.t, d.state_truth_vec[2, :], d.t, d.xm_vec[2, :])
+        plt.subplot(2, 3, 3)
+        plt.plot(d.t, d.state_truth_vec[2, :], d.t, d.xm_vec[2, :])
 
-    plt.subplot(2, 3, 4)
-    plt.plot(d.t, d.state_truth_vec[3, :], d.t, d.xm_vec[3, :])
+        plt.subplot(2, 3, 4)
+        plt.plot(d.t, d.state_truth_vec[3, :], d.t, d.xm_vec[3, :])
 
-    plt.subplot(2, 3, 5)
-    plt.plot(d.t, d.state_truth_vec[4, :], d.t, d.xm_vec[4, :])
+        plt.subplot(2, 3, 5)
+        plt.plot(d.t, d.state_truth_vec[4, :], d.t, d.xm_vec[4, :])
 
-    plt.show()
+        plt.show()
