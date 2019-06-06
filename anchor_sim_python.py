@@ -18,8 +18,11 @@ plot_run = False
 error = np.empty((0))
 
 for iteration in range(iterations):
+	###BRIAN: This generates the lighthouse trajectory, for this iteration of simulation#######
     x_l_traj = 0 * np.cos(np.linspace(0, timesteps, num=timesteps)/100)
     y_l_traj = 3 * np.sin(dt*np.linspace(0, timesteps, num=timesteps))
+    #####################################################
+
     #y_l_traj = 2 * (unidrnd(2*ones(1,timesteps))-1.5);
     #x0 = 3
     #y0 = 0
@@ -85,6 +88,8 @@ for iteration in range(iterations):
         if i < 1:
             gain = np.array([]) 
             for cont in range(0, 9):
+            	#BRIAN: this assess 9 different direcions the lighthouse could go and chooses the one that maximizes the fischer information matrix. 
+            	#I don't really use this method anymore#########
                 Rp = np.diag([np.power(sig1, 2), np.power(sig4, 2)])
                 del_Xl_prop = u_l[:, cont]
                 del_x = del_Xl_prop[0]
@@ -119,6 +124,8 @@ for iteration in range(iterations):
 
             last_direction = direction
         else:
+        	#BRIAN: chooses lighthouse directory based on the direciton that maximizes the first eigenvalue
+        	#of the fischer information matrix###################################
             d = np.linalg.norm(x_m[:,i-1] - X_l[:,i-1])
             angle = np.arctan2(x_m[1, i-1] - y_l[i-1], x_m[0, i-1] - x_l[i-1])
             Hp = (1/d) * np.array([[np.sin(angle), -np.cos(angle)]])
@@ -147,10 +154,15 @@ for iteration in range(iterations):
         x_l[i] = x_l[i-1] + direction[0]
         y_l[i] = y_l[i-1] + direction[1]
         X_l = np.append(X_l, np.array([x_l[i], y_l[i]])[:,None], axis=1)
+
+        #BRIAN: this is the prediction step of the anchor estimator and should be ported to the python simulator 
+        # as a part of the robot class
         # prediction step
         x_p = np.append(x_p, x_m[:, i-1][:, None], axis=1)
         P_p = np.append(P_p, P_m[:, :, i-1][:,:,None], axis=2)
+        ########################################################
 
+        #BRIAN: this noise generation should be ported over to the python simulator as a part of the robot class
         # generate noise
         w1 = np.random.randn() * sig1
         w2 = np.random.randn() * sig2
@@ -158,6 +170,9 @@ for iteration in range(iterations):
         # w4 = (randn(1) * sig4);
         # w4 = sig4+max(-exprnd(sig4),-90);
         w4 = -np.random.rayleigh(sig4 / np.sqrt((4-3.14)/2)) # rayleigh fading
+        ########################################################
+
+        #BRIAN: this part of measurement generation should probably be a part of the overarching simulator
         # generate measurments 
         z = np.array([[np.arctan2(x_a[1,i] - (y_l[i] + w1), x_a[0, i] - (x_l[i] + w2)) + w3],
             [-10 * np.log10(np.linalg.norm(x_a[:,i] - np.array([[x_l[i]], [y_l[i]]]))) + w4]])
@@ -165,9 +180,16 @@ for iteration in range(iterations):
         # z
         h = np.array([[np.arctan2(x_p[1, i] - y_l[i], x_p[0, i] - x_l[i])],
                         [-10 * np.log10(np.linalg.norm(x_p[:, i] - X_l[:, i]))]])
+        ##########################################################
+
+        #BRIAN: this is the measurement step of the anchor simulator and 
+        #should be implemented in the python simulator as a part of the robot object.
         # measurement step
 
         if abs(z[0] - h[0]) < 3.14:
+        	#BRIAN: the above if statement is to avoid angle wrapping issues that will break the estimator
+        	#the lighthouse EKF version of this simulation does a much better job of handling this angle problem
+        	#so use that angle wrapping method rather than this one.
             r = np.linalg.norm(x_p[:, i] - X_l[:, i])
             angle = np.arctan2(x_p[1, i] - y_l[i], x_p[0, i] - x_l[i])
             H = (1/r) * np.array([[-np.sin(angle), np.cos(angle)],
@@ -234,7 +256,7 @@ for iteration in range(iterations):
             tempD, tempV = np.linalg.eig(P_m[:,:,i])
             V = np.append(V, tempV)
             D = np.append(D, np.diag(tempD))
-
+        ##############################################################################    
     error = np.append(error, np.linalg.norm(x_a[:,0]-x_m[:,-1]))
     
     # Plot Runs NOT ORIGINALLY COMMENTED OUT BUT PLOT RUN IS FALSE SO TESTING
