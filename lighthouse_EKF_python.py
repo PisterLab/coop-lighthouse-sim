@@ -207,12 +207,12 @@ class Drone:
 
         # calculates anchor measurements based on the true theta state of the
         # robot. X_a is the set of anchor point locations.
-    def run_anchor(self):
+    def run_anchor(self, k):
+        assert k >= 1
         self.drone_type = DroneType.anchor_robot
-        for i in range(1, timesteps):
-            self.state_truth_arr.append(state_truth_arr[i-1])
-            self.state_truth_vec = np.hstack((self.state_truth_vec,
-                                              StateTruth.vectorize(self.state_truth_arr[i])[:, None]))
+        self.state_truth_arr.append(state_truth_arr[k-1])
+        self.state_truth_vec = np.hstack((self.state_truth_vec,
+                                          StateTruth.vectorize(self.state_truth_arr[k])[:, None]))
 
 # State Truth class
 class StateTruth:
@@ -341,10 +341,12 @@ d1 = Drone()
 d2 = Drone(7, 7)
 
 drones = [d1, d2]
+anchor_drones = []
 
 for k in range(1, timesteps):
     for d in drones:
         d.run_lighthouse(k)
+
 print("Debugging statement")
 
 
