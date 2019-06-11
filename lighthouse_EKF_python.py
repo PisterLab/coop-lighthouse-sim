@@ -57,20 +57,13 @@ class Drone:
         self.anchor_record = [[0, 0, 0, 0]]
         self.Pp = [np.zeros((5, 5))]
 
-    def run_lighthouse(self, k):
-        self.drone_type = DroneType.lighthouse_robot
-        assert k >= 1
+    def default_lighthouse_move(self):
+        assert self.drone_type == DroneType.lighthouse_robot
 
-        # step true state and save its vector
         self.state_truth_arr.append(StateTruth.step_dynamics_ekf(self.state_truth_arr[k - 1], self.omega[k - 1],
                                                                  self.ax[k - 1], self.ay[k - 1], dt))
         self.state_truth_vec = np.hstack((self.state_truth_vec,
                                           StateTruth.vectorize(self.state_truth_arr[k])[:, None]))
-
-        # corrupt IMU inputs with noise (aka sensor measurements will have some noise)
-        self.omega_m.append(self.omega[k - 1] + np.random.randn() * omega_n)
-        self.ax_m.append(self.ax[k - 1] + np.random.randn() * ax_n)
-        self.ay_m.append(self.ay[k - 1] + np.random.randn() * ay_n)
 
         # Prior update/Prediction step
 
@@ -78,6 +71,23 @@ class Drone:
         xp_obj = StateTruth.step_dynamics_ekf(self.xm_obj[k - 1], self.omega_m[k - 1], self.ax_m[k - 1],
                                               self.ay_m[k - 1], dt)
         xp_vec = StateTruth.vectorize(xp_obj)
+        return xp_obj, xp_vec
+
+    def run_lighthouse(self, k):
+        self.drone_type = DroneType.lighthouse_robot
+        assert k >= 1
+
+        # corrupt IMU inputs with noise (aka sensor measurements will have some noise)
+        self.omega_m.append(self.omega[k - 1] + np.random.randn() * omega_n)
+        self.ax_m.append(self.ax[k - 1] + np.random.randn() * ax_n)
+        self.ay_m.append(self.ay[k - 1] + np.random.randn() * ay_n)
+
+        # step true state and save its vector
+        # TODO: Fill the if part in, replacing the default lighthouse move
+        if len(anchor_drones) > 0:
+            xp_obj, xp_vec = self.default_lighthouse_move()
+        else:
+            xp_obj, xp_vec = self.default_lighthouse_move()
 
         # sig_l = 0.0001     # Default variable
 
@@ -207,10 +217,17 @@ class Drone:
 
         # calculates anchor measurements based on the true theta state of the
         # robot. X_a is the set of anchor point locations.
+
+    # TODO: fill this in with measurement calculation
+    def lighthouse_anchor_drone_meas(self, anchor_drone):
+        assert self.drone_type == DroneType.lighthouse_robot
+        assert anchor_drone.drone_type == DroneType.anchor_robot
+
+    # TODO: fill this in with anchor_sim_python code
     def run_anchor(self, k):
         assert k >= 1
         self.drone_type = DroneType.anchor_robot
-        self.state_truth_arr.append(state_truth_arr[k-1])
+        self.state_truth_arr.append(self.state_truth_arr[k-1])
         self.state_truth_vec = np.hstack((self.state_truth_vec,
                                           StateTruth.vectorize(self.state_truth_arr[k])[:, None]))
 
@@ -338,14 +355,17 @@ meas_diff = [0]     # UNUSED
 light_noise = [0]   # UNUSED
 
 d1 = Drone()
-d2 = Drone(7, 7)
+d3 = Drone(np.random.rand() * area_size, np.random.rand() * area_size)
 
-drones = [d1, d2]
-anchor_drones = []
+drones = [d1, d3]
+lighthouse_drones = [d1]
+anchor_drones = [d3]
 
 for k in range(1, timesteps):
-    for d in drones:
+    for d in lighthouse_drones:
         d.run_lighthouse(k)
+    for d in anchor_drones:
+        d.run_anchor(k)
 
 print("Debugging statement")
 
