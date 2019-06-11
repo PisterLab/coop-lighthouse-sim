@@ -38,19 +38,18 @@ class Drone:
         self.state_truth_arr = [StateTruth(x, y, theta, vx, vy)]
         self.state_truth_vec = self.state_truth_arr[0].vectorize()[:, None]
 
-        # initial measured starting position
-        # initial measurement is going to be the same as state truth
-        self.xm_vec = np.copy(self.state_truth_vec)
-        self.xm_obj = [self.state_truth_arr[0]]
-
         self.sig_x0 = 0.05  # initial uncertainty of x      # TODO: Figure out if this is drone specific or overall
         self.sig_y0 = 0.05  # initial uncertainty of y
-        self.sig_th0 = 0.01  # initial uncertainty of z
+        self.sig_th0 = 0.01  # initial uncertainty of theta
         self.sig_vx0 = 0.001  # initial uncertainty of vx
         self.sig_vy0 = 0.001  # initial uncertainty of vy
 
         # covariance of measurements
         self.Pm = [np.diag([self.sig_x0, self.sig_y0, self.sig_th0, self.sig_vx0, self.sig_vy0])]
+
+        # initial measured starting position
+        self.xm_vec = self.state_truth_vec + np.dot(np.random.rand(1, len(self.state_truth_vec)), self.Pm[0])
+        self.xm_obj = [StateTruth(self.xm_vec[0], self.xm_vec[1], self.xm_vec[2], self.xm_vec[3], self.xm_vec[4])]
 
         # lighthouse_available = False      # default variable
         self.anchor_counter = 0     # TODO: Is this necessary?
@@ -226,7 +225,16 @@ class Drone:
     # TODO: fill this in with anchor_sim_python code
     def run_anchor(self, k):
         assert k >= 1
-        self.drone_type = DroneType.anchor_robot
+        if self.drone_type != DroneType.anchor_robot:
+            self.drone_type = DroneType.anchor_robot
+            self.Pm[k - 1][2][2] = 0
+            self.Pm[k - 1][3][3] = 0
+            self.Pm[k - 1][4][4] = 0
+            self.xm_vec[2] = 0
+            self.xm_vec[3] = 0
+            self.xm_vec[4] = 0
+            self.xm_obj[k - 1] = StateTruth(self.xm_vec[0], self.xm_vec[1], self.xm_vec[2], self.xm_vec[3], self.xm_vec[4])
+
         self.state_truth_arr.append(self.state_truth_arr[k-1])
         self.state_truth_vec = np.hstack((self.state_truth_vec,
                                           StateTruth.vectorize(self.state_truth_arr[k])[:, None]))
