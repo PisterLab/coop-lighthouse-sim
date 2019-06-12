@@ -226,18 +226,21 @@ class Drone:
     def run_anchor(self, k):
         assert k >= 1
         if self.drone_type != DroneType.anchor_robot:
-            self.drone_type = DroneType.anchor_robot
-            self.Pm[k - 1][2][2] = 0
-            self.Pm[k - 1][3][3] = 0
-            self.Pm[k - 1][4][4] = 0
-            self.xm_vec[2] = 0
-            self.xm_vec[3] = 0
-            self.xm_vec[4] = 0
-            self.xm_obj[k - 1] = StateTruth(self.xm_vec[0], self.xm_vec[1], self.xm_vec[2], self.xm_vec[3], self.xm_vec[4])
+            self.change_to_anchor()
 
         self.state_truth_arr.append(self.state_truth_arr[k-1])
         self.state_truth_vec = np.hstack((self.state_truth_vec,
                                           StateTruth.vectorize(self.state_truth_arr[k])[:, None]))
+
+    def change_to_anchor(self):
+        self.drone_type = DroneType.anchor_robot
+        self.Pm[k - 1][2][2] = 0
+        self.Pm[k - 1][3][3] = 0
+        self.Pm[k - 1][4][4] = 0
+        self.xm_vec[2] = 0
+        self.xm_vec[3] = 0
+        self.xm_vec[4] = 0
+        self.xm_obj[k - 1] = StateTruth(self.xm_vec[0], self.xm_vec[1], self.xm_vec[2], self.xm_vec[3], self.xm_vec[4])
 
 # State Truth class
 class StateTruth:
