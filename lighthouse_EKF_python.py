@@ -446,6 +446,11 @@ g_w = 0.001 * 10
 g_ax = 0.08
 g_ay = 0.08
 
+sig1 = .05
+sig2 = .05
+sig3 = 1.5 * 3.1415 / 180
+sig4 = 10
+
 g = [g_x, g_y, g_w, g_ax, g_ay]
 Q = np.diag(np.multiply(g, g))
 
