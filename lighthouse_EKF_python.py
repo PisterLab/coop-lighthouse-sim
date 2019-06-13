@@ -319,8 +319,8 @@ class Drone:
         self.r_diffx.append(K[0,1]*(z[1]-h[1]))
         self.r_diffy.append(K[1,1]*(z[1]-h[1]))
         tempD, tempV = np.linalg.eig(self.Pm[k])
-        self.V = np.append(V, tempV)
-        self.D = np.append(D, np.diag(tempD))
+        self.V = np.append(self.V, tempV)
+        self.D = np.append(self.D, np.diag(tempD))
 
     def change_to_anchor(self):
         self.drone_type = DroneType.anchor_robot
