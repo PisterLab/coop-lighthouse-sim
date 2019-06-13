@@ -52,8 +52,8 @@ class Drone:
 
         # initial measured starting position
         # TODO: Figure out dimensions of xm_vec (whether it should be 2D or 1D)
-        self.xm_vec = self.state_truth_vec + np.dot(np.random.rand(1, len(self.state_truth_vec)), self.Pm[0])
-        self.xm_obj = [StateTruth(self.xm_vec[0], self.xm_vec[1], self.xm_vec[2], self.xm_vec[3], self.xm_vec[4])]
+        self.xm_vec = self.state_truth_vec + np.dot(np.random.rand(1, len(self.state_truth_vec)), self.Pm[0]).T
+        self.xm_obj = [StateTruth(self.xm_vec[0][0], self.xm_vec[1][0], self.xm_vec[2][0], self.xm_vec[3][0], self.xm_vec[4][0])]
 
         # lighthouse_available = False      # default variable
         self.anchor_counter = 0     # TODO: Is this necessary?
@@ -66,7 +66,7 @@ class Drone:
         self.measurement = np.zeros((2,1))
         self.D, self.V = np.linalg.eig(self.Pm[0])
         self.D = np.diag(self.D)[:,:,None]
-        self.V = self.sV[:,:,None]
+        self.V = self.V[:,:,None]
         self.r_diffx = []
         self.r_diffy = []
 
@@ -86,8 +86,16 @@ class Drone:
         xp_vec = StateTruth.vectorize(xp_obj)
         return xp_obj, xp_vec
 
-    def run_lighthouse(self, k):
+    def change_to_lighthouse(self):
         self.drone_type = DroneType.lighthouse_robot
+        self.Pm[k - 1][2][2] = self.sig_th0
+        self.Pm[k - 1][3][3] = self.sig_vx0
+        self.Pm[k - 1][4][4] = self.sig_vy0
+
+    def run_lighthouse(self, k):
+        if self.drone_type != DroneType.lighthouse_robot:
+            self.change_to_lighthouse()
+
         assert k >= 1
 
         # corrupt IMU inputs with noise (aka sensor measurements will have some noise)
