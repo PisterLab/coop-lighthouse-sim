@@ -58,7 +58,6 @@ class Drone:
         # lighthouse_available = False      # default variable
         self.anchor_counter = 0     # TODO: Is this necessary?
         self.anchor_record = [[0, 0, 0, 0]]
-        xp = np.zeros((5,1))
         self.Pp = [np.zeros((5, 5))]
 
         # TODO: these are directly copied from anchor_sim but not sure if this is best place for them
@@ -66,7 +65,7 @@ class Drone:
         self.measurement = np.zeros((2,1))
         self.D, self.V = np.linalg.eig(self.Pm[0])
         self.D = np.diag(self.D)[:,:,None]
-        self.V = self.sV[:,:,None]
+        self.V = self.V[:,:,None]
         self.r_diffx = []
         self.r_diffy = []
 
@@ -232,7 +231,7 @@ class Drone:
         # robot. X_a is the set of anchor point locations.
 
     # TODO: fill this in with measurement calculation
-    def lighthouse_anchor_drone_meas(self, k, anchor_drone):
+    def lighthouse_anchor_drone_meas(self, k, anchor_drone, xp):
         assert self.drone_type == DroneType.lighthouse_robot
         assert anchor_drone.drone_type == DroneType.anchor_robot
 
@@ -246,8 +245,8 @@ class Drone:
             [-10 * np.log10(np.linalg.norm(anchor_drone.state_truth_vec[0:2,k] - self.state_truth_vec[0:2,k])) + w4]])
         # propogate prediction through measurment model
         # z
-        h = np.array([[np.arctan2(anchor_drone.xp[1, k] - self.state_truth_vec[1,k], anchor_drone.xp[0, k] - self.state_truth_vec[0,k])],
-                        [-10 * np.log10(np.linalg.norm(anchor_drone.xp[0:2, k] - self.state_truth_vec[0:2, k]))]])
+        h = np.array([[np.arctan2(xp[1] - self.state_truth_vec[1,k], xp[0] - self.state_truth_vec[0,k])],
+                        [-10 * np.log10(np.linalg.norm(xp - self.state_truth_vec[0:2, k]))]])
 
         return z, h
 
@@ -261,21 +260,21 @@ class Drone:
         self.state_truth_vec = np.hstack((self.state_truth_vec,
                                           StateTruth.vectorize(self.state_truth_arr[k])[:, None]))
 
-        self.xp = np.append(self.xp, self.xm_vec[:, k-1][:, None], axis=1)
+        xp = self.xm_vec[0:2, k-1]
         self.Pp.append(self.Pm[k-1])
 
-        z, h = lighthouse_drone.lighthouse_anchor_drone_meas(k, self)
+        z, h = lighthouse_drone.lighthouse_anchor_drone_meas(k, self, xp)
 
-        r = np.linalg.norm(self.xp[0:2, k] - lighthouse_drone.state_truth_vec[0:2, k])
-        angle = ((np.arctan2(self.xp[1, k] - lighthouse_drone.state_truth_vec[1, k], self.xp[0, k] - lighthouse_drone.state_truth_vec[0,k]) + PI) % 2*PI) - PI
+        r = np.linalg.norm(xp - lighthouse_drone.state_truth_vec[0:2, k])
+        angle = ((np.arctan2(xp[1] - lighthouse_drone.state_truth_vec[1, k], xp[0] - lighthouse_drone.state_truth_vec[0,k]) + PI) % 2*PI) - PI
         H = (1/r) * np.array([[-np.sin(angle), np.cos(angle)],
-            [-10 * (self.xp[0, k] - lighthouse_drone.state_truth_vec[0,k]) / (np.log(10) * r), -10 * (self.xp[1, k] - lighthouse_drone.state_truth_vec[1,k]) / (np.log(10) * r)]])
+            [-10 * (xp[0] - lighthouse_drone.state_truth_vec[0,k]) / (np.log(10) * r), -10 * (xp[1] - lighthouse_drone.state_truth_vec[1,k]) / (np.log(10) * r)]])
         # H = [-(x_p(2,i)-y_l(i))/norm(x_p(:,i)-X_l(:,i))^2 , (x_p(1,i)-x_l(i))/norm(x_p(:,i)-X_l(:,i))^2;
         #      -10*(x_p(1,i)-x_l(i))/(log(10)* norm(x_p(:,i)-X_l(:,i))^2), -10*(x_p(2,i)-y_l(i))/(log(10)* norm(x_p(:,i)-X_l(:,i))^2)];
 
 
-        W = np.array([[(self.xp[1, k] - lighthouse_drone.state_truth_vec[1,k]) / np.power(np.linalg.norm(self.xp[0:2, k] - lighthouse_drone.state_truth_vec[0:2, k]), 2), -(self.xp[0, k] - lighthouse_drone.state_truth_vec[0,k]) / np.power(np.linalg.norm(self.xp[0:2, k] - lighthouse_drone.state_truth_vec[0:2, k]), 2), 1, 0],
-                        [10 * (self.xp[0, k] - lighthouse_drone.state_truth_vec[0,k]) / (np.log(10) * np.power(np.linalg.norm(self.xp[0:2, k] - lighthouse_drone.state_truth_vec[0:2, k]), 2)), 10*(self.xp[1, k]-lighthouse_drone.state_truth_vec[1,k]) / (np.log(10) * np.power(np.linalg.norm(self.xp[0:2, k] - lighthouse_drone.state_truth_vec[0:2, k]), 2)), 0 ,1]])
+        W = np.array([[(xp[1] - lighthouse_drone.state_truth_vec[1,k]) / np.power(np.linalg.norm(xp - lighthouse_drone.state_truth_vec[0:2, k]), 2), -(xp[0] - lighthouse_drone.state_truth_vec[0,k]) / np.power(np.linalg.norm(xp - lighthouse_drone.state_truth_vec[0:2, k]), 2), 1, 0],
+                        [10 * (xp[0] - lighthouse_drone.state_truth_vec[0,k]) / (np.log(10) * np.power(np.linalg.norm(xp - lighthouse_drone.state_truth_vec[0:2, k]), 2)), 10*(xp[1]-lighthouse_drone.state_truth_vec[1,k]) / (np.log(10) * np.power(np.linalg.norm(xp - lighthouse_drone.state_truth_vec[0:2, k]), 2)), 0 ,1]])
 
         R = np.array([np.append(P_l[0,:],[0]),
                     np.append(P_l[1,:], [0]),
@@ -295,7 +294,7 @@ class Drone:
         z_h_diff = z-h
         z_h_diff[0] = ((z_h_diff[0] + PI) % 2*PI) - PI
 
-        new_xm_xy = np.array(self.xp[0:2, k][:,None] + K @ z_h_diff)
+        new_xm_xy = np.array(self.xp[:,None] + K @ z_h_diff)
         new_xm = np.append(new_xm_xy, np.zeros((3,1)), axis=0)
 
         self.xm_vec = np.append(self.xm_vec, new_xm, axis=1)
