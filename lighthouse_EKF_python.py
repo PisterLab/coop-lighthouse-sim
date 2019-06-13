@@ -44,9 +44,6 @@ class Drone:
         self.sig_vx0 = 0.001  # initial uncertainty of vx
         self.sig_vy0 = 0.001  # initial uncertainty of vy
 
-        self.varx = [np.power(.3, 2)] # TODO: Figure out if you need this in addition to sig_x0 etc and if you need to start Pm with varx and vary for anchors
-        self.vary = [np.power(.3, 2)]
-
         # covariance of measurements
         self.Pm = [np.diag([self.sig_x0, self.sig_y0, self.sig_th0, self.sig_vx0, self.sig_vy0])]
 
@@ -311,9 +308,7 @@ class Drone:
         new_Pm = np.zeros((5,5))
         new_Pm[0:2, 0:2] = np.array((np.identity(2) - K @ H) @ self.Pp[k][0:2, 0:2])
         self.Pm.append(new_Pm)
-        
-        self.varx.append(self.Pm[k][0,0])
-        self.vary.append(self.Pm[k][1,1])
+
         self.measurement = np.append(self.measurement, z, axis=1)
 
         self.K_rx.append(K[0,1])
