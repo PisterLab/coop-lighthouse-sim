@@ -299,7 +299,7 @@ class Drone:
         z_h_diff = z-h
         z_h_diff[0] = ((z_h_diff[0] + PI) % 2*PI) - PI
 
-        new_xm_xy = np.array(self.xp[:,None] + K @ z_h_diff)
+        new_xm_xy = np.array(xp[:,None] + K @ z_h_diff)
         new_xm = np.append(new_xm_xy, np.zeros((3,1)), axis=0)
 
         self.xm_vec = np.append(self.xm_vec, new_xm, axis=1)
