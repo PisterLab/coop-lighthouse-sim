@@ -44,17 +44,31 @@ class Drone:
         self.sig_vx0 = 0.001  # initial uncertainty of vx
         self.sig_vy0 = 0.001  # initial uncertainty of vy
 
+        self.varx = [np.power(.3, 2)] # TODO: Figure out if you need this in addition to sig_x0 etc and if you need to start Pm with varx and vary for anchors
+        self.vary = [np.power(.3, 2)]
+
         # covariance of measurements
         self.Pm = [np.diag([self.sig_x0, self.sig_y0, self.sig_th0, self.sig_vx0, self.sig_vy0])]
 
         # initial measured starting position
+        # TODO: Figure out dimensions of xm_vec (whether it should be 2D or 1D)
         self.xm_vec = self.state_truth_vec + np.dot(np.random.rand(1, len(self.state_truth_vec)), self.Pm[0])
         self.xm_obj = [StateTruth(self.xm_vec[0], self.xm_vec[1], self.xm_vec[2], self.xm_vec[3], self.xm_vec[4])]
 
         # lighthouse_available = False      # default variable
         self.anchor_counter = 0     # TODO: Is this necessary?
         self.anchor_record = [[0, 0, 0, 0]]
+        xp = np.zeros((5,1))
         self.Pp = [np.zeros((5, 5))]
+
+        # TODO: these are directly copied from anchor_sim but not sure if this is best place for them
+        self.K_rx = self.K_ry = self.K_lx = self.K_ly = [0]
+        self.measurement = np.zeros((2,1))
+        self.D, self.V = np.linalg.eig(self.Pm[0])
+        self.D = np.diag(self.D)[:,:,None]
+        self.V = self.sV[:,:,None]
+        self.r_diffx = []
+        self.r_diffy = []
 
     def default_lighthouse_move(self):
         assert self.drone_type == DroneType.lighthouse_robot
@@ -218,12 +232,27 @@ class Drone:
         # robot. X_a is the set of anchor point locations.
 
     # TODO: fill this in with measurement calculation
-    def lighthouse_anchor_drone_meas(self, anchor_drone):
+    def lighthouse_anchor_drone_meas(self, k, anchor_drone):
         assert self.drone_type == DroneType.lighthouse_robot
         assert anchor_drone.drone_type == DroneType.anchor_robot
 
-    # TODO: fill this in with anchor_sim_python code
-    def run_anchor(self, k):
+        # generate noise
+        w1 = np.random.randn() * sig1
+        w2 = np.random.randn() * sig2
+        w3 = np.random.randn() * sig3
+        w4 = -np.random.rayleigh(sig4 / np.sqrt((4-3.14)/2))
+
+        z = np.array([[np.arctan2(anchor_drone.state_truth_vec[1,k] - (self.state_truth_vec[1,k] + w1), anchor_drone.state_truth_vec[0, k] - (self.state_truth_vec[0,k] + w2)) + w3],
+            [-10 * np.log10(np.linalg.norm(anchor_drone.state_truth_vec[0:2,k] - self.state_truth_vec[0:2,k])) + w4]])
+        # propogate prediction through measurment model
+        # z
+        h = np.array([[np.arctan2(anchor_drone.xp[1, k] - self.state_truth_vec[1,k], anchor_drone.xp[0, k] - self.state_truth_vec[0,k])],
+                        [-10 * np.log10(np.linalg.norm(anchor_drone.xp[0:2, k] - self.state_truth_vec[0:2, k]))]])
+
+        return z, h
+
+    # TODO: figure out dimensions of xm_vec
+    def run_anchor(self, k, lighthouse_drone):
         assert k >= 1
         if self.drone_type != DroneType.anchor_robot:
             self.change_to_anchor()
@@ -231,6 +260,65 @@ class Drone:
         self.state_truth_arr.append(self.state_truth_arr[k-1])
         self.state_truth_vec = np.hstack((self.state_truth_vec,
                                           StateTruth.vectorize(self.state_truth_arr[k])[:, None]))
+
+        self.xp = np.append(self.xp, self.xm_vec[:, k-1][:, None], axis=1)
+        self.Pp.append(self.Pm[k-1])
+
+        z, h = lighthouse_drone.lighthouse_anchor_drone_meas(k, self)
+
+        r = np.linalg.norm(self.xp[0:2, k] - lighthouse_drone.state_truth_vec[0:2, k])
+        angle = ((np.arctan2(self.xp[1, k] - lighthouse_drone.state_truth_vec[1, k], self.xp[0, k] - lighthouse_drone.state_truth_vec[0,k]) + PI) % 2*PI) - PI
+        H = (1/r) * np.array([[-np.sin(angle), np.cos(angle)],
+            [-10 * (self.xp[0, k] - lighthouse_drone.state_truth_vec[0,k]) / (np.log(10) * r), -10 * (self.xp[1, k] - lighthouse_drone.state_truth_vec[1,k]) / (np.log(10) * r)]])
+        # H = [-(x_p(2,i)-y_l(i))/norm(x_p(:,i)-X_l(:,i))^2 , (x_p(1,i)-x_l(i))/norm(x_p(:,i)-X_l(:,i))^2;
+        #      -10*(x_p(1,i)-x_l(i))/(log(10)* norm(x_p(:,i)-X_l(:,i))^2), -10*(x_p(2,i)-y_l(i))/(log(10)* norm(x_p(:,i)-X_l(:,i))^2)];
+
+
+        W = np.array([[(self.xp[1, k] - lighthouse_drone.state_truth_vec[1,k]) / np.power(np.linalg.norm(self.xp[0:2, k] - lighthouse_drone.state_truth_vec[0:2, k]), 2), -(self.xp[0, k] - lighthouse_drone.state_truth_vec[0,k]) / np.power(np.linalg.norm(self.xp[0:2, k] - lighthouse_drone.state_truth_vec[0:2, k]), 2), 1, 0],
+                        [10 * (self.xp[0, k] - lighthouse_drone.state_truth_vec[0,k]) / (np.log(10) * np.power(np.linalg.norm(self.xp[0:2, k] - lighthouse_drone.state_truth_vec[0:2, k]), 2)), 10*(self.xp[1, k]-lighthouse_drone.state_truth_vec[1,k]) / (np.log(10) * np.power(np.linalg.norm(self.xp[0:2, k] - lighthouse_drone.state_truth_vec[0:2, k]), 2)), 0 ,1]])
+
+        R = np.array([np.append(P_l[0,:],[0]),
+                    np.append(P_l[1,:], [0]),
+                    np.append(P_l[2,:], [0]),
+                    [0,0,0,sig4**2]])
+
+
+
+        K = self.Pp[k][0:2, 0:2] @ H.T @ np.linalg.inv(H @ self.Pp[k][0:2, 0:2] @ H.T + W @ R @ W.T)
+
+        # is the kalman gain helpful?
+
+        K = np.array([[K[0, 0], 0],
+                    [K[1, 0], 0]])
+
+
+        z_h_diff = z-h
+        z_h_diff[0] = ((z_h_diff[0] + PI) % 2*PI) - PI
+
+        new_xm_xy = np.array(self.xp[0:2, k][:,None] + K @ z_h_diff)
+        new_xm = np.append(new_xm_xy, np.zeros((3,1)), axis=0)
+
+        self.xm_vec = np.append(self.xm_vec, new_xm, axis=1)
+        self.xm_obj.append(StateTruth(self.xm_vec[0,k], self.xm_vec[1,k], self.xm_vec[2,k], self.xm_vec[3,k], self.xm_vec[4,k]))
+        
+        new_Pm = np.zeros((5,5))
+        new_Pm[0:2, 0:2] = np.array((np.identity(2) - K @ H) @ self.Pp[k][0:2, 0:2])
+        self.Pm.append(new_Pm)
+        
+        self.varx.append(self.Pm[k][0,0])
+        self.vary.append(self.Pm[k][1,1])
+        self.measurement = np.append(self.measurement, z, axis=1)
+
+        self.K_rx.append(K[0,1])
+        self.K_ry.append(K[1,1])
+        self.K_lx.append(K[0,0])
+        self.K_ly.append(K[1,0])
+
+        self.r_diffx.append(K[0,1]*(z[1]-h[1]))
+        self.r_diffy.append(K[1,1]*(z[1]-h[1]))
+        tempD, tempV = np.linalg.eig(self.Pm[k])
+        self.V = np.append(V, tempV)
+        self.D = np.append(D, np.diag(tempD))
 
     def change_to_anchor(self):
         self.drone_type = DroneType.anchor_robot
@@ -326,9 +414,7 @@ def compute_anchor_meas(state_truth, state_truth_prev, meas_record, state_estima
 timesteps = 5000
 lighthouse_dt = .3      # UNUSED
 dt = 0.01
-P_l = np.array([[1, 0, 0],      # UNUSED
-                [0, 1, 0],
-                [0, 0, 1]])   # covariance of lighthouse states
+P_l = np.diag([.05**2, .05**2, (1.5 * 3.1415 / 180)**2])    # covariance of lighthouse states
 x_l_0 = 1   # UNUSED
 y_l_0 = 1   # UNUSED
 PI = 3.1415927
@@ -376,7 +462,7 @@ for k in range(1, timesteps):
     for d in lighthouse_drones:
         d.run_lighthouse(k)
     for d in anchor_drones:
-        d.run_anchor(k)
+        d.run_anchor(k, lighthouse_drones[0]) #just using first lighthouse for now will change later
 
 print("Debugging statement")
 
