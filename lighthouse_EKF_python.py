@@ -286,8 +286,6 @@ class Drone:
                     np.append(P_l[2,:], [0]),
                     [0,0,0,sig4**2]])
 
-
-
         K = self.Pp[k][0:2, 0:2] @ H.T @ np.linalg.inv(H @ self.Pp[k][0:2, 0:2] @ H.T + W @ R @ W.T)
 
         # is the kalman gain helpful?
@@ -477,11 +475,18 @@ print("Debugging statement")
 if plot_run:
     for d in drones:
         plt.figure(1)
+        plt.scatter(X_a[:, 0], X_a[:, 1], color='black')        # anchor points
 
-        plt.plot(d.state_truth_vec[0, :], d.state_truth_vec[1, :])
-        plt.scatter(X_a[:, 0], X_a[:, 1])
-        plt.plot(d.xm_vec[0, :], d.xm_vec[1, :])
+        plt.scatter(d.state_truth_vec[0, ::100], d.state_truth_vec[1, ::100], linewidths=0.001, marker=".", color='m')     # state truths
+        plt.plot(d.state_truth_vec[0, :], d.state_truth_vec[1, :], color='m')
+
+        plt.scatter(d.xm_vec[0, ::100], d.xm_vec[1, ::100], linewidths=0.001, marker=".", color='b')       # measured paths
+        plt.plot(d.xm_vec[0, :], d.xm_vec[1, :], color='b')
+
+        plt.scatter(d.state_truth_vec[0, 0], d.state_truth_vec[1, 0], color='g')      # actual startpoints
+        plt.scatter(d.xm_vec[0, -1], d.xm_vec[1, -1], color='r')     # measured endpoints
         # n_measures = size(anchor_record);
+        """
         for i in range(1, len(d.anchor_record)):
             x_d = d.anchor_record[i][0]
             y_d = d.anchor_record[i][1]
@@ -492,7 +497,7 @@ if plot_run:
             # TODO: Figure out dashed lines
             plt.quiver(x_d, y_d, delta[0], delta[1], angles='xy', scale_units='xy', scale=1, width=0.001,
                        linestyle='dashed', color=['r', 'b', 'y', 'g', 'm'][i % 5])
-
+        """
         """
         plt.figure(2)
 
