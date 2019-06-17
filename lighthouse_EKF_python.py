@@ -285,7 +285,6 @@ class Drone:
 
         return z, h
 
-    # TODO: figure out dimensions of xm_vec
     def run_anchor(self, k, lighthouse_drone):
         assert k >= 1
         if self.drone_type != DroneType.anchor_robot:
@@ -300,16 +299,18 @@ class Drone:
 
         z, h = lighthouse_drone.lighthouse_anchor_drone_meas(k, self, xp)
 
-        r = np.linalg.norm(xp - lighthouse_drone.state_truth_vec[0:2, k])
-        angle = ((np.arctan2(xp[1] - lighthouse_drone.state_truth_vec[1, k], xp[0] - lighthouse_drone.state_truth_vec[0,k]) + PI) % 2*PI) - PI
+        lighthouse_xy = lighthouse_drone.state_truth_vec[0:2, k]
+
+        r = np.linalg.norm(xp - lighthouse_xy)
+        angle = ((np.arctan2(xp[1] - lighthouse_xy[1], xp[0] - lighthouse_xy[0]) + PI) % 2*PI) - PI
         H = (1/r) * np.array([[-np.sin(angle), np.cos(angle)],
-            [-10 * (xp[0] - lighthouse_drone.state_truth_vec[0,k]) / (np.log(10) * r), -10 * (xp[1] - lighthouse_drone.state_truth_vec[1,k]) / (np.log(10) * r)]])
+            [-10 * (xp[0] - lighthouse_xy[0]) / (np.log(10) * r), -10 * (xp[1] - lighthouse_xy[1]) / (np.log(10) * r)]])
         # H = [-(x_p(2,i)-y_l(i))/norm(x_p(:,i)-X_l(:,i))^2 , (x_p(1,i)-x_l(i))/norm(x_p(:,i)-X_l(:,i))^2;
         #      -10*(x_p(1,i)-x_l(i))/(log(10)* norm(x_p(:,i)-X_l(:,i))^2), -10*(x_p(2,i)-y_l(i))/(log(10)* norm(x_p(:,i)-X_l(:,i))^2)];
 
 
-        W = np.array([[(xp[1] - lighthouse_drone.state_truth_vec[1,k]) / np.power(np.linalg.norm(xp - lighthouse_drone.state_truth_vec[0:2, k]), 2), -(xp[0] - lighthouse_drone.state_truth_vec[0,k]) / np.power(np.linalg.norm(xp - lighthouse_drone.state_truth_vec[0:2, k]), 2), 1, 0],
-                        [10 * (xp[0] - lighthouse_drone.state_truth_vec[0,k]) / (np.log(10) * np.power(np.linalg.norm(xp - lighthouse_drone.state_truth_vec[0:2, k]), 2)), 10*(xp[1]-lighthouse_drone.state_truth_vec[1,k]) / (np.log(10) * np.power(np.linalg.norm(xp - lighthouse_drone.state_truth_vec[0:2, k]), 2)), 0 ,1]])
+        W = np.array([[(xp[1] - lighthouse_xy[1]) / np.power(np.linalg.norm(xp - lighthouse_xy), 2), -(xp[0] - lighthouse_xy[0]) / np.power(np.linalg.norm(xp - lighthouse_xy), 2), 1, 0],
+                        [10 * (xp[0] - lighthouse_xy[0]) / (np.log(10) * np.power(np.linalg.norm(xp - lighthouse_xy), 2)), 10*(xp[1]-lighthouse_xy[1]) / (np.log(10) * np.power(np.linalg.norm(xp - lighthouse_xy), 2)), 0 ,1]])
 
         R = np.array([np.append(P_l[0,:],[0]),
                     np.append(P_l[1,:], [0]),
@@ -498,8 +499,6 @@ for k in range(1, timesteps):
         d.run_lighthouse(k)
     for d in anchor_drones:
         d.run_anchor(k, lighthouse_drones[0]) #just using first lighthouse for now will change later
-
-print("Debugging statement")
 
 
 if plot_run:
