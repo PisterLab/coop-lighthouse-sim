@@ -65,6 +65,7 @@ class Drone:
         self.V = self.V[:,:,None]
         self.r_diffx = []
         self.r_diffy = []
+        self.last_direction = np.array([0, 0])[:, None]
 
     def default_lighthouse_move(self):
         assert self.drone_type == DroneType.lighthouse_robot
@@ -81,6 +82,33 @@ class Drone:
                                               self.ay_m[k - 1], dt)
         xp_vec = StateTruth.vectorize(xp_obj)
         return xp_obj, xp_vec
+
+    def lighthouse_with_anchor_drone_move(self, anchor_drone):
+        d = np.linalg.norm(anchor_drone.xm_vec[0:2, k - 1] - self.state_truth_vec[0:2, k - 1])
+        angle = np.arctan2(anchor_drone.xm_vec[1, k - 1] - self.state_truth_vec[1, k - 1], anchor_drone.xm_vec[0, k - 1] - self.state_truth_vec[0, k - 1])
+        Hp = (1 / d) * np.array([[np.sin(angle), -np.cos(angle)]])
+        # -10*(x_m(1,i-1)-(x_l(i-1)))/(log(10)* d), -10*(x_m(2,i-1)-(y_l(i-1)))/(log(10)* d)];
+        Rp = np.diag([np.power(sig1, 2)])
+        fim = np.matmul(Hp.T / np.linalg.inv(Rp), Hp)
+        lam, v = np.linalg.eig(fim)
+        lam = np.diag(lam)
+        if lam[0, 0] >= lam[1, 1]:
+            direction = v[:, 0]
+        else:
+            direction = v[:, 1]
+
+        dot = np.matmul(np.transpose(direction), self.last_direction)
+
+        if (np.matmul(np.transpose(direction), self.last_direction)) < 0:
+            direction = -direction
+
+        self.last_direction = direction
+
+        # x_l(i) = x_l(i-1)+ u_l(1,max_idx);
+        # y_l(i) = y_l(i-1)+ u_l(2,max_idx);
+        self.state_truth_arr.append(StateTruth(self.state_truth_vec[0, k - 1] + direction[0], self.state_truth_vec[1, k - 1] + direction[1]))
+        self.state_truth_vec = np.hstack((self.state_truth_vec, StateTruth.vectorize(self.state_truth_arr[k])[:, None]))
+        return self.state_truth_arr[k], self.state_truth_vec[:, k]
 
     def change_to_lighthouse(self):
         self.drone_type = DroneType.lighthouse_robot
@@ -102,6 +130,8 @@ class Drone:
         # step true state and save its vector
         # TODO: Fill the if part in, replacing the default lighthouse move
         if len(anchor_drones) > 0:
+            anchor = anchor_drones[0]       # TODO: fix this
+            #xp_obj, xp_vec = self.lighthouse_with_anchor_drone_move(anchor)
             xp_obj, xp_vec = self.default_lighthouse_move()
         else:
             xp_obj, xp_vec = self.default_lighthouse_move()
