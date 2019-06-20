@@ -59,7 +59,7 @@ class Drone:
 
         # TODO: these are directly copied from anchor_sim but not sure if this is best place for them
         self.K_rx = self.K_ry = self.K_lx = self.K_ly = [0]
-        self.measurement = np.zeros((2,1))
+        self.measurement = []
         self.D, self.V = np.linalg.eig(self.Pm[0])
         self.D = np.diag(self.D)[:,:,None]
         self.V = self.V[:,:,None]
@@ -276,12 +276,10 @@ class Drone:
         w3 = np.random.randn() * sig3
         w4 = -np.random.rayleigh(sig4 / np.sqrt((4-3.14)/2))*0
 
-        z = np.array([[np.arctan2(anchor_drone.state_truth_vec[1, k] - (self.state_truth_vec[1, k] + w1), anchor_drone.state_truth_vec[0, k] - (self.state_truth_vec[0, k] + w2)) + w3],
-            [-10 * np.log10(np.linalg.norm(anchor_drone.state_truth_vec[0:2, k] - self.state_truth_vec[0:2, k])) + w4]])
+        z = np.arctan2(anchor_drone.state_truth_vec[1, k] - (self.state_truth_vec[1, k] + w1), anchor_drone.state_truth_vec[0, k] - (self.state_truth_vec[0, k] + w2)) + w3
         # propogate prediction through measurment model
         # z
-        h = np.array([[np.arctan2(xp[1] - self.state_truth_vec[1, k], xp[0] - self.state_truth_vec[0, k])],
-                        [-10 * np.log10(np.linalg.norm(xp - self.state_truth_vec[0:2, k]))]])
+        h = np.arctan2(xp[1] - self.state_truth_vec[1, k], xp[0] - self.state_truth_vec[0, k])
 
         return z, h
 
@@ -303,8 +301,7 @@ class Drone:
 
         r = np.linalg.norm(xp - lighthouse_xy)
         angle = ((np.arctan2(xp[1] - lighthouse_xy[1], xp[0] - lighthouse_xy[0]) + PI) % (2*PI)) - PI
-        H = (1/r) * np.array([[-np.sin(angle), np.cos(angle)],
-            [-10 * (xp[0] - lighthouse_xy[0]) / (np.log(10) * r), -10 * (xp[1] - lighthouse_xy[1]) / (np.log(10) * r)]])
+        H = (1/r) * np.array([-np.sin(angle), np.cos(angle)])
         # H = [-(x_p(2,i)-y_l(i))/norm(x_p(:,i)-X_l(:,i))^2 , (x_p(1,i)-x_l(i))/norm(x_p(:,i)-X_l(:,i))^2;
         #      -10*(x_p(1,i)-x_l(i))/(log(10)* norm(x_p(:,i)-X_l(:,i))^2), -10*(x_p(2,i)-y_l(i))/(log(10)* norm(x_p(:,i)-X_l(:,i))^2)];
 
@@ -318,38 +315,35 @@ class Drone:
                     [0,0,0,sig4**2]])
 
         K = self.Pp[k][0:2, 0:2] @ H.T @ np.linalg.inv(H @ self.Pp[k][0:2, 0:2] @ H.T + W @ R @ W.T)
+        K = K[:,None]
 
         # is the kalman gain helpful?
 
-        K = np.array([[K[0, 0], 0],
-                    [K[1, 0], 0]])
 
+        z_h_diff = ((z-h + PI) % (2*PI)) - PI
 
-        z_h_diff = z-h
-        z_h_diff[0] = ((z_h_diff[0] + PI) % (2*PI)) - PI
-
-        new_xm_xy = np.array(xp[:,None] + K @ z_h_diff)
+        new_xm_xy = np.array(xp[:,None] + K * z_h_diff)
         new_xm = np.append(new_xm_xy, np.zeros((3,1)), axis=0)
 
         self.xm_vec = np.append(self.xm_vec, new_xm, axis=1)
         self.xm_obj.append(StateTruth(self.xm_vec[0,k], self.xm_vec[1,k], self.xm_vec[2,k], self.xm_vec[3,k], self.xm_vec[4,k]))
         
         new_Pm = np.zeros((5,5))
-        new_Pm[0:2, 0:2] = np.array((np.identity(2) - K @ H) @ self.Pp[k][0:2, 0:2])
+        new_Pm[0:2, 0:2] = np.array((np.identity(2) - K @ np.array([H])) @ self.Pp[k][0:2, 0:2])
         self.Pm.append(new_Pm)
 
-        self.measurement = np.append(self.measurement, z, axis=1)
+        self.measurement.append(z)
 
-        self.K_rx.append(K[0,1])
-        self.K_ry.append(K[1,1])
-        self.K_lx.append(K[0,0])
-        self.K_ly.append(K[1,0])
+        # self.K_rx.append(K[0,1])
+        # self.K_ry.append(K[1,1])
+        # self.K_lx.append(K[0,0])
+        # self.K_ly.append(K[1,0])
 
-        self.r_diffx.append(K[0,1]*(z[1]-h[1]))
-        self.r_diffy.append(K[1,1]*(z[1]-h[1]))
-        tempD, tempV = np.linalg.eig(self.Pm[k])
-        self.V = np.append(self.V, tempV)
-        self.D = np.append(self.D, np.diag(tempD))
+        # self.r_diffx.append(K[0,1]*(z[1]-h[1]))
+        # self.r_diffy.append(K[1,1]*(z[1]-h[1]))
+        # tempD, tempV = np.linalg.eig(self.Pm[k])
+        # self.V = np.append(self.V, tempV)
+        # self.D = np.append(self.D, np.diag(tempD))
 
     def change_to_anchor(self):
         self.drone_type = DroneType.anchor_robot
