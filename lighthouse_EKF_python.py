@@ -274,13 +274,13 @@ class Drone:
         w1 = np.random.randn() * sig1
         w2 = np.random.randn() * sig2
         w3 = np.random.randn() * sig3
-        w4 = -np.random.rayleigh(sig4 / np.sqrt((4-3.14)/2))
+        w4 = -np.random.rayleigh(sig4 / np.sqrt((4-3.14)/2))*0
 
-        z = np.array([[np.arctan2(anchor_drone.state_truth_vec[1,k] - (self.state_truth_vec[1,k] + w1), anchor_drone.state_truth_vec[0, k] - (self.state_truth_vec[0,k] + w2)) + w3],
-            [-10 * np.log10(np.linalg.norm(anchor_drone.state_truth_vec[0:2,k] - self.state_truth_vec[0:2,k])) + w4]])
+        z = np.array([[np.arctan2(anchor_drone.state_truth_vec[1, k] - (self.state_truth_vec[1, k] + w1), anchor_drone.state_truth_vec[0, k] - (self.state_truth_vec[0, k] + w2)) + w3],
+            [-10 * np.log10(np.linalg.norm(anchor_drone.state_truth_vec[0:2, k] - self.state_truth_vec[0:2, k])) + w4]])
         # propogate prediction through measurment model
         # z
-        h = np.array([[np.arctan2(xp[1] - self.state_truth_vec[1,k], xp[0] - self.state_truth_vec[0,k])],
+        h = np.array([[np.arctan2(xp[1] - self.state_truth_vec[1, k], xp[0] - self.state_truth_vec[0, k])],
                         [-10 * np.log10(np.linalg.norm(xp - self.state_truth_vec[0:2, k]))]])
 
         return z, h
@@ -302,7 +302,7 @@ class Drone:
         lighthouse_xy = lighthouse_drone.state_truth_vec[0:2, k]
 
         r = np.linalg.norm(xp - lighthouse_xy)
-        angle = ((np.arctan2(xp[1] - lighthouse_xy[1], xp[0] - lighthouse_xy[0]) + PI) % 2*PI) - PI
+        angle = ((np.arctan2(xp[1] - lighthouse_xy[1], xp[0] - lighthouse_xy[0]) + PI) % (2*PI)) - PI
         H = (1/r) * np.array([[-np.sin(angle), np.cos(angle)],
             [-10 * (xp[0] - lighthouse_xy[0]) / (np.log(10) * r), -10 * (xp[1] - lighthouse_xy[1]) / (np.log(10) * r)]])
         # H = [-(x_p(2,i)-y_l(i))/norm(x_p(:,i)-X_l(:,i))^2 , (x_p(1,i)-x_l(i))/norm(x_p(:,i)-X_l(:,i))^2;
@@ -326,7 +326,7 @@ class Drone:
 
 
         z_h_diff = z-h
-        z_h_diff[0] = ((z_h_diff[0] + PI) % 2*PI) - PI
+        z_h_diff[0] = ((z_h_diff[0] + PI) % (2*PI)) - PI
 
         new_xm_xy = np.array(xp[:,None] + K @ z_h_diff)
         new_xm = np.append(new_xm_xy, np.zeros((3,1)), axis=0)
