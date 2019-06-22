@@ -436,6 +436,9 @@ def compute_anchor_meas(state_truth, state_truth_prev, meas_record, state_estima
         phi_final = phi_matches[0]
     return lighthouse, phi_final, meas_record
 
+def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_estimate):
+    
+
 timesteps = 5000
 lighthouse_dt = .3      # UNUSED
 dt = 0.01
