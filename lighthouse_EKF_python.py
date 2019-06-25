@@ -3,13 +3,6 @@ import math
 import matplotlib.pyplot as plt
 import enum
 
-# TODO: Make a Lighthouse Robot class
-# TODO: Make a Drone class
-
-# TODO: Figure out what actually needs to be instance vs. static vs. temp
-
-# TODO: Figure out what to do with StateTruth class
-
 PI = 3.1415927      # constant
 
 
@@ -38,7 +31,7 @@ class Drone:
         self.state_truth_arr = [StateTruth(x, y, theta, vx, vy)]
         self.state_truth_vec = self.state_truth_arr[0].vectorize()[:, None]
 
-        self.sig_x0 = 0.05  # initial uncertainty of x      # TODO: Figure out if this is drone specific or overall
+        self.sig_x0 = 0.05  # initial uncertainty of x
         self.sig_y0 = 0.05  # initial uncertainty of y
         self.sig_th0 = 0.01  # initial uncertainty of theta
         self.sig_vx0 = 0.001  # initial uncertainty of vx
@@ -50,7 +43,8 @@ class Drone:
         # initial measured starting position
         # TODO: Figure out dimensions of xm_vec (whether it should be 2D or 1D)
         self.xm_vec = self.state_truth_vec + np.dot(np.random.rand(1, len(self.state_truth_vec)), self.Pm[0]).T
-        self.xm_obj = [StateTruth(self.xm_vec[0][0], self.xm_vec[1][0], self.xm_vec[2][0], self.xm_vec[3][0], self.xm_vec[4][0])]
+        self.xm_obj = [StateTruth(self.xm_vec[0][0], self.xm_vec[1][0], self.xm_vec[2][0], self.xm_vec[3][0],
+                                  self.xm_vec[4][0])]
 
         # self.lighthouse_available = False      # default variable
         self.anchor_counter = 0     # TODO: Is this necessary?
@@ -61,8 +55,8 @@ class Drone:
         self.K_rx = self.K_ry = self.K_lx = self.K_ly = [0]
         self.measurement = []
         self.D, self.V = np.linalg.eig(self.Pm[0])
-        self.D = np.diag(self.D)[:,:,None]
-        self.V = self.V[:,:,None]
+        self.D = np.diag(self.D)[:, :, None]
+        self.V = self.V[:, :, None]
         self.r_diffx = []
         self.r_diffy = []
         self.last_direction = np.array([0, 0])[:, None]
@@ -85,7 +79,8 @@ class Drone:
 
     def lighthouse_with_anchor_drone_move(self, anchor_drone):
         d = np.linalg.norm(anchor_drone.xm_vec[0:2, k - 1] - self.state_truth_vec[0:2, k - 1])
-        angle = np.arctan2(anchor_drone.xm_vec[1, k - 1] - self.state_truth_vec[1, k - 1], anchor_drone.xm_vec[0, k - 1] - self.state_truth_vec[0, k - 1])
+        angle = np.arctan2(anchor_drone.xm_vec[1, k - 1] - self.state_truth_vec[1, k - 1], anchor_drone.xm_vec[0, k - 1]
+                           - self.state_truth_vec[0, k - 1])
         Hp = (1 / d) * np.array([[np.sin(angle), -np.cos(angle)]])
         # -10*(x_m(1,i-1)-(x_l(i-1)))/(log(10)* d), -10*(x_m(2,i-1)-(y_l(i-1)))/(log(10)* d)];
         Rp = np.diag([np.power(sig1, 2)])
@@ -97,7 +92,7 @@ class Drone:
         else:
             direction = v[:, 1]
 
-        dot = np.matmul(np.transpose(direction), self.last_direction)
+        # dot = np.matmul(np.transpose(direction), self.last_direction)
 
         if (np.matmul(np.transpose(direction), self.last_direction)) < 0:
             direction = -direction
@@ -106,7 +101,8 @@ class Drone:
 
         # x_l(i) = x_l(i-1)+ u_l(1,max_idx);
         # y_l(i) = y_l(i-1)+ u_l(2,max_idx);
-        self.state_truth_arr.append(StateTruth(self.state_truth_vec[0, k - 1] + direction[0], self.state_truth_vec[1, k - 1] + direction[1]))
+        self.state_truth_arr.append(StateTruth(self.state_truth_vec[0, k - 1] + direction[0],
+                                               self.state_truth_vec[1, k - 1] + direction[1]))
         self.state_truth_vec = np.hstack((self.state_truth_vec, StateTruth.vectorize(self.state_truth_arr[k])[:, None]))
         return self.state_truth_arr[k], self.state_truth_vec[:, k]
 
@@ -130,8 +126,8 @@ class Drone:
         # step true state and save its vector
         # TODO: Fill the if part in, replacing the default lighthouse move
         if len(anchor_drones) > 0:
-            anchor = anchor_drones[0]       # TODO: fix this
-            #xp_obj, xp_vec = self.lighthouse_with_anchor_drone_move(anchor)
+            # anchor = anchor_drones[0]       # TODO: fix this
+            # xp_obj, xp_vec = self.lighthouse_with_anchor_drone_move(anchor)
             xp_obj, xp_vec = self.default_lighthouse_move()
         else:
             xp_obj, xp_vec = self.default_lighthouse_move()
@@ -231,7 +227,7 @@ class Drone:
             # Kalman gain
             # TODO: Switch to transposing function
             kalman_gain = np.dot(np.dot(self.Pp[k], H_mat.T),
-                       np.linalg.inv([np.dot(np.dot(H_mat, self.Pp[k])[0], H_mat.T) + M * R_mat * M]))
+                                 np.linalg.inv([np.dot(np.dot(H_mat, self.Pp[k])[0], H_mat.T) + M * R_mat * M]))
 
         # xm
         # calculate measurement diff in order to wrap angles
@@ -319,7 +315,6 @@ class Drone:
         K = K[:,None]
 
         # is the kalman gain helpful?
-
 
         z_h_diff = ((z-h + PI) % (2*PI)) - PI
 
@@ -638,7 +633,6 @@ dt = 0.01
 P_l = np.diag([.05**2, .05**2, (1.5 * 3.1415 / 180)**2])    # covariance of lighthouse states
 x_l_0 = 1   # UNUSED
 y_l_0 = 1   # UNUSED
-PI = 3.1415927
 
 iterations = 1000
 plot_run = True
@@ -688,7 +682,7 @@ for k in range(1, timesteps):
     for d in lighthouse_drones:
         d.run_lighthouse(k)
     for d in anchor_drones:
-        d.run_anchor(k, lighthouse_drones[0]) #just using first lighthouse for now will change later
+        d.run_anchor(k, lighthouse_drones[0])   # just using first lighthouse for now will change later
 
 
 if plot_run:
@@ -696,13 +690,15 @@ if plot_run:
         plt.figure(1)
         plt.scatter(X_a[:, 0], X_a[:, 1], color='black')        # anchor points
 
-        plt.scatter(d.state_truth_vec[0, ::100], d.state_truth_vec[1, ::100], linewidths=0.001, marker=".", color='m')     # state truths
+        plt.scatter(d.state_truth_vec[0, ::100], d.state_truth_vec[1, ::100],   # state truths
+                    linewidths=0.001, marker=".", color='m')
         plt.plot(d.state_truth_vec[0, :], d.state_truth_vec[1, :], color='m')
 
-        plt.scatter(d.xm_vec[0, ::100], d.xm_vec[1, ::100], linewidths=0.001, marker=".", color='b')       # measured paths
+        plt.scatter(d.xm_vec[0, ::100], d.xm_vec[1, ::100],     # measured paths
+                    linewidths=0.001, marker=".", color='b')
         plt.plot(d.xm_vec[0, :], d.xm_vec[1, :], color='b')
 
-        plt.scatter(d.state_truth_vec[0, 0], d.state_truth_vec[1, 0], color='g')      # actual startpoints
+        plt.scatter(d.state_truth_vec[0, 0], d.state_truth_vec[1, 0], color='g')      # actual start points
         plt.scatter(d.xm_vec[0, -1], d.xm_vec[1, -1], color='r')     # measured endpoints
         # n_measures = size(anchor_record);
         """
