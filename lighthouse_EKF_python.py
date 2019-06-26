@@ -160,6 +160,7 @@ class Drone:
         lighthouse_available, phi, self.meas_record = compute_anchor_meas(self.state_truth_arr[k],
                                                                             self.state_truth_arr[k - 1],
                                                                             self.meas_record, xp_obj)
+        lighthouse_meas(self.state_truth_arr[k], self.state_truth_arr[k - 1], xp_obj)
 
 
         # decide if lighthouse measurement is available
@@ -625,6 +626,66 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
 
 
     return lighthouse, z, meas_record
+
+
+def lighthouse_meas(state_truth, state_truth_prev, state_estimate):
+    num_anchors = len(anchor_drones)
+
+    x_column = np.array([[drone.state_truth_arr[-1].x for drone in anchor_drones]]).T
+    y_column = np.array([[drone.state_truth_arr[-1].y for drone in anchor_drones]]).T
+
+    # calculate headings to all anchor points
+    phis_k = np.arctan2(state_truth.y - y_column, state_truth.x - x_column)
+    # calculate headings to all anchor points from previous state
+    phis_prev = np.arctan2(state_truth_prev.y - y_column, state_truth_prev.x - x_column)
+
+    # calc anchor distances from robot
+    # This is unused so I don't know why it's here
+    # ds = np.linalg.norm(X_a - np.tile([state_truth.x,state_truth.y], (num_anchors, 1)), 2, 1)
+
+    # find a phi that matches current
+
+    phi_robot_k = (state_truth.theta + 2 * PI) % (2 * PI) - PI
+    phi_robot_vec_k = np.tile(phi_robot_k, (num_anchors, 1))  # stacked vector of robot orientation
+
+    phi_robot_prev = (state_truth_prev.theta + 2 * PI) % (2 * PI) - PI
+    phi_robot_vec_prev = np.tile(phi_robot_prev, (num_anchors, 1))  # stacked vector of robot orientation
+
+    # TODO: Switch to transposing function
+    if len(np.shape(phis_k)) == 1:
+        phis_k = np.array([phis_k]).T
+        phis_prev = np.array([phis_prev]).T
+
+
+    phi_product = np.multiply((phis_k - phi_robot_vec_k + PI) % (2 * PI) - PI,
+                              (phis_prev - phi_robot_vec_prev + PI) % (2 * PI) - PI)
+    match_idx = phi_product <= 0
+
+    phi_matches = []
+    match_drones = []
+
+    # Add the location of the anchor it matched with
+    for i in range(len(match_idx)):
+        if match_idx[i][0]:
+            phi_matches.append(phis_k[i][0])
+            match_drones.append(anchor_drones[i])
+
+    # If the robot didn't cross an anchor
+    if len(match_drones) == 0:
+        for drone in anchor_drones:
+            drone.lighthouse_available = False
+            drone.phi = 100
+
+    # If the robot did cross an anchor
+    else:
+        for drone in match_drones:
+            drone.lighthouse_available = True
+
+            # Store where we think the robot is and which anchor it crossed
+            # TODO: fill in with necessary info
+            drone.anchor_record.append([state_estimate.x, state_estimate.y])  # store measurement vector
+            drone.phi = phi_matches[0]
+
 
 timesteps = 5000
 lighthouse_dt = .3      # UNUSED
