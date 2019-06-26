@@ -54,12 +54,11 @@ class Drone:
 
         # lighthouse_available = False      # default variable
         self.anchor_counter = 0     # TODO: Is this necessary?
-        self.anchor_record = [[0, 0, 0, 0]]
+        self.meas_record = [[0, 0, 0, 0]]
         self.Pp = [np.zeros((5, 5))]
 
         # TODO: these are directly copied from anchor_sim but not sure if this is best place for them
         self.K_rx = self.K_ry = self.K_lx = self.K_ly = [0]
-        self.measurement = []
         self.D, self.V = np.linalg.eig(self.Pm[0])
         self.D = np.diag(self.D)[:,:,None]
         self.V = self.V[:,:,None]
@@ -161,9 +160,9 @@ class Drone:
         self.Pp.append(np.dot(np.dot(A, self.Pm[k - 1]), np.transpose(A)) + np.dot(np.dot(L, Q),
                                                                                              np.transpose(L)))
         # decide whether the lighthouse robot is crossing an anchor
-        lighthouse_available, phi, self.anchor_record = compute_anchor_meas(self.state_truth_arr[k],
+        lighthouse_available, phi, self.meas_record = compute_anchor_meas(self.state_truth_arr[k],
                                                                             self.state_truth_arr[k - 1],
-                                                                            self.anchor_record, xp_obj)
+                                                                            self.meas_record, xp_obj)
 
         # decide if lighthouse measurement is available
         # if mod(k*dt, lighthouse_dt)==0
@@ -174,8 +173,8 @@ class Drone:
             # currently useless, I guess we can just keep track of which anchor?
             self.anchor_counter = (self.anchor_counter + 1) % n_anchors
 
-            x_a = self.anchor_record[len(self.anchor_record) - 1][2]
-            y_a = self.anchor_record[len(self.anchor_record) - 1][3]
+            x_a = self.meas_record[len(self.meas_record) - 1][2]
+            y_a = self.meas_record[len(self.meas_record) - 1][3]
 
             # calculate noise corrupted measurement
             c_noise = np.random.randn() * compass_n  # compass noise
@@ -265,25 +264,7 @@ class Drone:
         # calculates anchor measurements based on the true theta state of the
         # robot. X_a is the set of anchor point locations.
 
-    # TODO: fill this in with measurement calculation
-    def lighthouse_anchor_drone_meas(self, k, anchor_drone, xp):
-        assert self.drone_type == DroneType.lighthouse_robot
-        assert anchor_drone.drone_type == DroneType.anchor_robot
-
-        # generate noise
-        w1 = np.random.randn() * sig1
-        w2 = np.random.randn() * sig2
-        w3 = np.random.randn() * sig3
-        w4 = -np.random.rayleigh(sig4 / np.sqrt((4-3.14)/2))*0
-
-        z = np.arctan2(anchor_drone.state_truth_vec[1, k] - (self.state_truth_vec[1, k] + w1), anchor_drone.state_truth_vec[0, k] - (self.state_truth_vec[0, k] + w2)) + w3
-        # propogate prediction through measurment model
-        # z
-        h = np.arctan2(xp[1] - self.state_truth_vec[1, k], xp[0] - self.state_truth_vec[0, k])
-
-        return z, h
-
-    def run_anchor(self, k, lighthouse_drone):
+    def run_anchor(self, k):
         assert k >= 1
         if self.drone_type != DroneType.anchor_robot:
             self.change_to_anchor()
@@ -295,44 +276,50 @@ class Drone:
         xp = self.xm_vec[0:2, k-1]
         self.Pp.append(self.Pm[k-1])
 
-        z, h = lighthouse_drone.lighthouse_anchor_drone_meas(k, self, xp)
-
-        lighthouse_xy = lighthouse_drone.state_truth_vec[0:2, k]
-
-        r = np.linalg.norm(xp - lighthouse_xy)
-        angle = ((np.arctan2(xp[1] - lighthouse_xy[1], xp[0] - lighthouse_xy[0]) + PI) % (2*PI)) - PI
-        H = (1/r) * np.array([-np.sin(angle), np.cos(angle)])
-        # H = [-(x_p(2,i)-y_l(i))/norm(x_p(:,i)-X_l(:,i))^2 , (x_p(1,i)-x_l(i))/norm(x_p(:,i)-X_l(:,i))^2;
-        #      -10*(x_p(1,i)-x_l(i))/(log(10)* norm(x_p(:,i)-X_l(:,i))^2), -10*(x_p(2,i)-y_l(i))/(log(10)* norm(x_p(:,i)-X_l(:,i))^2)];
-
-
-        W = np.array([[(xp[1] - lighthouse_xy[1]) / np.power(np.linalg.norm(xp - lighthouse_xy), 2), -(xp[0] - lighthouse_xy[0]) / np.power(np.linalg.norm(xp - lighthouse_xy), 2), 1, 0],
-                        [10 * (xp[0] - lighthouse_xy[0]) / (np.log(10) * np.power(np.linalg.norm(xp - lighthouse_xy), 2)), 10*(xp[1]-lighthouse_xy[1]) / (np.log(10) * np.power(np.linalg.norm(xp - lighthouse_xy), 2)), 0 ,1]])
-
-        R = np.array([np.append(P_l[0,:],[0]),
-                    np.append(P_l[1,:], [0]),
-                    np.append(P_l[2,:], [0]),
-                    [0,0,0,sig4**2]])
-
-        K = self.Pp[k][0:2, 0:2] @ H.T @ np.linalg.inv(H @ self.Pp[k][0:2, 0:2] @ H.T + W @ R @ W.T)
-        K = K[:,None]
-
-        # is the kalman gain helpful?
-
-
-        z_h_diff = ((z-h + PI) % (2*PI)) - PI
-
-        new_xm_xy = np.array(xp[:,None] + K * z_h_diff)
-        new_xm = np.append(new_xm_xy, np.zeros((3,1)), axis=0)
-
-        self.xm_vec = np.append(self.xm_vec, new_xm, axis=1)
-        self.xm_obj.append(StateTruth(self.xm_vec[0,k], self.xm_vec[1,k], self.xm_vec[2,k], self.xm_vec[3,k], self.xm_vec[4,k]))
+        lighthouse_available, z, self.meas_record = compute_lighthouse_meas(self.state_truth_arr[k], self.state_truth_arr[k-1], self.meas_record, xp, k)
         
-        new_Pm = np.zeros((5,5))
-        new_Pm[0:2, 0:2] = np.array((np.identity(2) - K @ np.array([H])) @ self.Pp[k][0:2, 0:2])
-        self.Pm.append(new_Pm)
 
-        self.measurement.append(z)
+        if lighthouse_available:
+            h = np.arctan2(xp[1] - self.meas_record[-1][3], xp[0] - self.meas_record[-1][2])
+
+            lighthouse_xy = self.meas_record[-1][2:]
+
+            r = np.linalg.norm(xp - lighthouse_xy)
+            angle = ((np.arctan2(xp[1] - lighthouse_xy[1], xp[0] - lighthouse_xy[0]) + PI) % (2*PI)) - PI
+            H = (1/r) * np.array([-np.sin(angle), np.cos(angle)])
+            # H = [-(x_p(2,i)-y_l(i))/norm(x_p(:,i)-X_l(:,i))^2 , (x_p(1,i)-x_l(i))/norm(x_p(:,i)-X_l(:,i))^2;
+            #      -10*(x_p(1,i)-x_l(i))/(log(10)* norm(x_p(:,i)-X_l(:,i))^2), -10*(x_p(2,i)-y_l(i))/(log(10)* norm(x_p(:,i)-X_l(:,i))^2)];
+
+
+            W = np.array([[(xp[1] - lighthouse_xy[1]) / np.power(np.linalg.norm(xp - lighthouse_xy), 2), -(xp[0] - lighthouse_xy[0]) / np.power(np.linalg.norm(xp - lighthouse_xy), 2), 1, 0],
+                            [10 * (xp[0] - lighthouse_xy[0]) / (np.log(10) * np.power(np.linalg.norm(xp - lighthouse_xy), 2)), 10*(xp[1]-lighthouse_xy[1]) / (np.log(10) * np.power(np.linalg.norm(xp - lighthouse_xy), 2)), 0 ,1]])
+
+            R = np.array([np.append(P_l[0,:],[0]),
+                        np.append(P_l[1,:], [0]),
+                        np.append(P_l[2,:], [0]),
+                        [0,0,0,sig4**2]])
+
+            K = self.Pp[k][0:2, 0:2] @ H.T @ np.linalg.inv(H @ self.Pp[k][0:2, 0:2] @ H.T + W @ R @ W.T)
+            K = K[:,None]
+
+            # is the kalman gain helpful?
+
+
+            z_h_diff = ((z-h + PI) % (2*PI)) - PI
+
+            new_xm_xy = np.array(xp[:,None] + K * z_h_diff)
+            new_xm = np.append(new_xm_xy, np.zeros((3,1)), axis=0)
+
+            self.xm_vec = np.append(self.xm_vec, new_xm, axis=1)
+            self.xm_obj.append(StateTruth(self.xm_vec[0,k], self.xm_vec[1,k], self.xm_vec[2,k], self.xm_vec[3,k], self.xm_vec[4,k]))
+            
+            new_Pm = np.zeros((5,5))
+            new_Pm[0:2, 0:2] = np.array((np.identity(2) - K @ np.array([H])) @ self.Pp[k][0:2, 0:2])
+            self.Pm.append(new_Pm)
+
+        else:
+            return
+            # TODO: Figure out what to do if there is no measurement
 
         # self.K_rx.append(K[0,1])
         # self.K_ry.append(K[1,1])
@@ -393,9 +380,9 @@ class Drone:
         self.Pp.append(np.dot(np.dot(A, self.Pm[k - 1]), np.transpose(A)) + np.dot(np.dot(L, Q),
                                                                                    np.transpose(L)))
         # decide whether the lighthouse robot is crossing an anchor
-        lighthouse_available, phi, self.anchor_record = compute_anchor_meas(self.state_truth_arr[k],
+        lighthouse_available, phi, self.meas_record = compute_anchor_meas(self.state_truth_arr[k],
                                                                             self.state_truth_arr[k - 1],
-                                                                            self.anchor_record, xp_obj)
+                                                                            self.meas_record, xp_obj)
 
         # decide if lighthouse measurement is available
         # if mod(k*dt, lighthouse_dt)==0
@@ -406,8 +393,8 @@ class Drone:
         # currently useless, I guess we can just keep track of which anchor?
             self.anchor_counter = (self.anchor_counter + 1) % n_anchors
 
-            x_a = self.anchor_record[len(self.anchor_record) - 1][2]
-            y_a = self.anchor_record[len(self.anchor_record) - 1][3]
+            x_a = self.meas_record[len(self.meas_record) - 1][2]
+            y_a = self.meas_record[len(self.meas_record) - 1][3]
 
             # calculate noise corrupted measurement
             c_noise = np.random.randn() * compass_n  # compass noise
@@ -539,10 +526,10 @@ def compute_anchor_meas(state_truth, state_truth_prev, meas_record, state_estima
     # ds = np.linalg.norm(X_a - np.tile([state_truth.x,state_truth.y], (num_anchors, 1)), 2, 1)
 
     # find a phi that matches current
-    phi_robot_k = (state_truth.theta + 2 * PI) % (2 * PI) - PI
+    phi_robot_k = (state_truth.theta + PI) % (2 * PI) - PI
     phi_robot_vec_k = np.tile(phi_robot_k, (num_anchors, 1))  # stacked vector of robot orientation
 
-    phi_robot_prev = (state_truth_prev.theta + 2 * PI) % (2 * PI) - PI
+    phi_robot_prev = (state_truth_prev.theta + PI) % (2 * PI) - PI
     phi_robot_vec_prev = np.tile(phi_robot_prev, (num_anchors, 1))  # stacked vector of robot orientation
 
     # TODO: Switch to transposing function
@@ -578,8 +565,64 @@ def compute_anchor_meas(state_truth, state_truth_prev, meas_record, state_estima
         phi_final = phi_matches[0]
     return lighthouse, phi_final, meas_record
 
-def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_estimate):
-    
+def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_estimate, k):
+    num_lighthouses = len(lighthouse_drones)
+
+    x_column = np.array([l.state_truth_arr[k].x for l in lighthouse_drones])
+    y_column = np.array([l.state_truth_arr[k].y for l in lighthouse_drones])
+
+    # calculate headings to all anchor points
+    phis_k = np.arctan2(state_truth.y - y_column, state_truth.x - x_column)
+    # calculate headings to all anchor points from previous state
+    phis_prev = np.arctan2(state_truth_prev.y - y_column, state_truth_prev.x - x_column)
+
+    # calc anchor distances from robot
+    # This is unused so I don't know why it's here
+    # ds = np.linalg.norm(X_a - np.tile([state_truth.x,state_truth.y], (num_anchors, 1)), 2, 1)
+
+    # find a phi that matches current
+    phi_robot_k = (state_truth.theta + PI) % (2 * PI) - PI
+    phi_robot_vec_k = np.tile(phi_robot_k, (num_lighthouses, 1))  # stacked vector of robot orientation
+
+    phi_robot_prev = (state_truth_prev.theta + PI) % (2 * PI) - PI
+    phi_robot_vec_prev = np.tile(phi_robot_prev, (num_lighthouses, 1))  # stacked vector of robot orientation
+
+
+    phi_product = np.multiply((phis_k - phi_robot_vec_k + PI) % (2 * PI) - PI,
+                              (phis_prev - phi_robot_vec_prev + PI) % (2 * PI) - PI)
+    match_idx = phi_product <= 0
+    # match_idx = abs(phis_k - repmat(phi_robot_k,num_anchors,1)) < MATCH_THRESH
+    phi_matches = []
+    match_locs = []
+
+    # Add the location of the anchor it matched with
+    for i in range(len(match_idx)):
+        if match_idx[i][0]:
+            phi_matches.append(phis_k[i][0])
+            match_locs.append([lighthouse_drones[i].state_truth_arr[k].x, lighthouse_drones[i].state_truth_arr[k].y])
+
+    # If the robot didn't cross an anchor
+    if len(phi_matches) == 0:
+        lighthouse = False
+        z = 100
+
+    # If the robot did cross an anchor
+    else:
+        lighthouse = True
+
+        # Store where we think the robot is and which anchor it crossed
+        meas_record.append([state_estimate[0], state_estimate[1],
+                            match_locs[0][0], match_locs[0][1]])  # store measurement vector
+        
+        w1 = np.random.randn() * sig1
+        w2 = np.random.randn() * sig2
+        w3 = np.random.randn() * sig3
+        w4 = -np.random.rayleigh(sig4 / np.sqrt((4-3.14)/2))*0
+
+        z = np.arctan2(anchor_drone.state_truth_vec[1, k] - (self.state_truth_vec[1, k] + w1), anchor_drone.state_truth_vec[0, k] - (self.state_truth_vec[0, k] + w2)) + w3
+
+
+    return lighthouse, z, meas_record
 
 timesteps = 5000
 lighthouse_dt = .3      # UNUSED
@@ -637,7 +680,7 @@ for k in range(1, timesteps):
     for d in lighthouse_drones:
         d.run_lighthouse(k)
     for d in anchor_drones:
-        d.run_anchor(k, lighthouse_drones[0]) #just using first lighthouse for now will change later
+        d.run_anchor(k) #just using first lighthouse for now will change later
 
 
 if plot_run:
