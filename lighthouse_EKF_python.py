@@ -574,21 +574,19 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
     x_column = np.array([l.state_truth_arr[k].x for l in lighthouse_drones])
     y_column = np.array([l.state_truth_arr[k].y for l in lighthouse_drones])
 
-    # calculate headings to all anchor points
-    phis_k = np.arctan2(state_truth.y - y_column, state_truth.x - x_column)
-    # calculate headings to all anchor points from previous state
-    phis_prev = np.arctan2(state_truth_prev.y - y_column, state_truth_prev.x - x_column)
+    # calculate headings from all lighthouses to unknown anchor
+    phis_k = np.arctan2(y_column - state_truth.y, x_column - state_truth.x)
+    # calculate headings from all lighthouses to unknown anchor from previous state
+    phis_prev = np.arctan2(y_column - state_truth_prev.y, x_column - state_truth_prev.x)
 
     # calc anchor distances from robot
     # This is unused so I don't know why it's here
     # ds = np.linalg.norm(X_a - np.tile([state_truth.x,state_truth.y], (num_anchors, 1)), 2, 1)
 
     # find a phi that matches current
-    phi_robot_k = (state_truth.theta + PI) % (2 * PI) - PI
-    phi_robot_vec_k = np.tile(phi_robot_k, (num_lighthouses, 1))  # stacked vector of robot orientation
+    phi_robot_vec_k = np.array([(l.state_truth_arr[k].theta + PI) % (2 * PI) - PI for l in lighthouse_drones])
 
-    phi_robot_prev = (state_truth_prev.theta + PI) % (2 * PI) - PI
-    phi_robot_vec_prev = np.tile(phi_robot_prev, (num_lighthouses, 1))  # stacked vector of robot orientation
+    phi_robot_prev = np.array([(l.state_truth_arr[k - 1].theta + PI) % (2 * PI) - PI for l in lighthouse_drones])
 
     phi_product = np.multiply((phis_k - phi_robot_vec_k + PI) % (2 * PI) - PI,
                               (phis_prev - phi_robot_vec_prev + PI) % (2 * PI) - PI)
