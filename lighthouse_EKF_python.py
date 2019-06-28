@@ -46,7 +46,7 @@ class Drone:
         self.xm_obj = [StateTruth(self.xm_vec[0][0], self.xm_vec[1][0], self.xm_vec[2][0], self.xm_vec[3][0],
                                   self.xm_vec[4][0])]
 
-        # self.lighthouse_available = False      # default variable
+        # lighthouse_available = False      # default variable
         self.anchor_counter = 0     # TODO: Is this necessary?
         self.meas_record = [[0, 0, 0, 0]]
         self.Pp = [np.zeros((5, 5))]
@@ -182,7 +182,7 @@ class Drone:
             # l_noise = randn * compass_n
             # l_noise = xp_obj.theta - phi     # this is the actual error of lighthouse i believe
 
-            z = np.array([[((self.phi + l_noise + PI) % (2 * PI)) - PI],
+            z = np.array([[((phi + l_noise + PI) % (2 * PI)) - PI],
                                [((self.state_truth_arr[k].theta + c_noise + PI) % (2 * PI)) - PI]])
 
             # calculate H
@@ -320,7 +320,9 @@ class Drone:
 
         else:
             return
+            ####################
             # TODO: Figure out what to do if there is no measurement
+            ####################
 
         # self.K_rx.append(K[0,1])
         # self.K_ry.append(K[1,1])
@@ -389,7 +391,7 @@ class Drone:
 
         # decide if lighthouse measurement is available
         # if mod(k*dt, lighthouse_dt)==0
-        if self.lighthouse_available:
+        if lighthouse_available:
         # lighthouse measurement is available
 
         # choose anchor
@@ -406,7 +408,7 @@ class Drone:
             # l_noise = randn * compass_n
             # l_noise = xp_obj.theta - phi     # this is the actual error of lighthouse i believe
 
-            z = np.array([[((self.phi + l_noise + PI) % (2 * PI)) - PI],
+            z = np.array([[((phi + l_noise + PI) % (2 * PI)) - PI],
                           [((self.state_truth_arr[k].theta + c_noise + PI) % (2 * PI)) - PI]])
 
             # calculate H
@@ -458,7 +460,7 @@ class Drone:
         # calculate measurement diff in order to wrap angles
         diff = []
 
-        if self.lighthouse_available:
+        if lighthouse_available:
             diff.append(z[0] - zhat[0])
             diff.append(z[1] - zhat[1])
 
