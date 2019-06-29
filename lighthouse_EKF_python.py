@@ -317,7 +317,7 @@ class Drone:
 
         else:
             
-            self.xm_vec = np.append(self.xm_vec, self.xm_vec[:, -1], axis=1)
+            self.xm_vec = np.append(self.xm_vec, self.xm_vec[:, -1][:,None], axis=1)
             self.xm_obj.append(self.xm_obj[-1])
             self.Pm.append(self.Pm[-1])
 
@@ -576,24 +576,24 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
     y_column = np.array([l.state_truth_arr[k].y for l in lighthouse_drones])
 
     # calculate headings from all lighthouses to unknown anchor
-    phis_k = np.arctan2(y_column - state_truth.y, x_column - state_truth.x)
+    phis_k = np.arctan2(y_column - state_truth.y, x_column - state_truth.x)[:,None]
     # calculate headings from all lighthouses to unknown anchor from previous state
-    phis_prev = np.arctan2(y_column - state_truth_prev.y, x_column - state_truth_prev.x)
+    phis_prev = np.arctan2(y_column - state_truth_prev.y, x_column - state_truth_prev.x)[:,None]
 
     # calc anchor distances from robot
     # This is unused so I don't know why it's here
     # ds = np.linalg.norm(X_a - np.tile([state_truth.x,state_truth.y], (num_anchors, 1)), 2, 1)
 
     # find a phi that matches current
-    phi_robot_vec_k = np.array([(l.state_truth_arr[k].theta + PI) % (2 * PI) - PI for l in lighthouse_drones])
+    phi_robot_vec_k = np.array([(l.state_truth_arr[k].theta + PI) % (2 * PI) - PI for l in lighthouse_drones])[:,None]
 
-    phi_robot_vec_prev = np.array([(l.state_truth_arr[k - 1].theta + PI) % (2 * PI) - PI for l in lighthouse_drones])
+    phi_robot_vec_prev = np.array([(l.state_truth_arr[k - 1].theta + PI) % (2 * PI) - PI for l in lighthouse_drones])[:,None]
 
     phi_product = np.multiply((phis_k - phi_robot_vec_k + PI) % (2 * PI) - PI,
                               (phis_prev - phi_robot_vec_prev + PI) % (2 * PI) - PI)
     match_idx = phi_product <= 0
-    if len(np.shape(match_idx)) == 1:
-        match_idx = match_idx[:, None]
+    # if len(np.shape(match_idx)) == 1:
+    #     match_idx = match_idx[:, None]
 
     # match_idx = abs(phis_k - repmat(phi_robot_k,num_anchors,1)) < MATCH_THRESH
     phi_matches = []
@@ -603,7 +603,7 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
     for i in range(len(match_idx)):
         if match_idx[i][0]:
             phi_matches.append(phis_k[i][0])
-            match_locs.append([lighthouse_drones[i].xp_obj[k].x, lighthouse_drones[i].xp_obj.y])
+            match_locs.append([lighthouse_drones[i].xp_obj.x, lighthouse_drones[i].xp_obj.y])
 
     # If the robot didn't cross an anchor
     if len(phi_matches) == 0:
