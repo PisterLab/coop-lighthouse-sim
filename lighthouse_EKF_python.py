@@ -319,10 +319,11 @@ class Drone:
             self.Pm.append(new_Pm)
 
         else:
-            return
-            ####################
-            # TODO: Figure out what to do if there is no measurement
-            ####################
+            
+            self.xm_vec = np.append(self.xm_vec, self.xm_vec[:, -1], axis=1)
+            self.xm_obj.append(self.xm_obj[-1])
+            self.Pm.append(self.Pm[-1])
+
 
         # self.K_rx.append(K[0,1])
         # self.K_ry.append(K[1,1])
@@ -588,7 +589,7 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
     # find a phi that matches current
     phi_robot_vec_k = np.array([(l.state_truth_arr[k].theta + PI) % (2 * PI) - PI for l in lighthouse_drones])
 
-    phi_robot_prev = np.array([(l.state_truth_arr[k - 1].theta + PI) % (2 * PI) - PI for l in lighthouse_drones])
+    phi_robot_vec_prev = np.array([(l.state_truth_arr[k - 1].theta + PI) % (2 * PI) - PI for l in lighthouse_drones])
 
     phi_product = np.multiply((phis_k - phi_robot_vec_k + PI) % (2 * PI) - PI,
                               (phis_prev - phi_robot_vec_prev + PI) % (2 * PI) - PI)
