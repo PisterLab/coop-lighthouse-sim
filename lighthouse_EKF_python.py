@@ -593,6 +593,8 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
     phi_product = np.multiply((phis_k - phi_robot_vec_k + PI) % (2 * PI) - PI,
                               (phis_prev - phi_robot_vec_prev + PI) % (2 * PI) - PI)
     match_idx = phi_product <= 0
+    if len(np.shape(match_idx)) == 1:
+        match_idx = match_idx[:, None]
 
     # match_idx = abs(phis_k - repmat(phi_robot_k,num_anchors,1)) < MATCH_THRESH
     phi_matches = []
