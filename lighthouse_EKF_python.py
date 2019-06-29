@@ -127,9 +127,9 @@ class Drone:
         if len(anchor_drones) > 0:
             # anchor = anchor_drones[0]       # TODO: fix this
             # xp_obj, xp_vec = self.lighthouse_with_anchor_drone_move(anchor)
-            xp_obj, xp_vec = self.default_lighthouse_move()
+            self.xp_obj, xp_vec = self.default_lighthouse_move()
         else:
-            xp_obj, xp_vec = self.default_lighthouse_move()
+            self.xp_obj, xp_vec = self.default_lighthouse_move()
 
         # sig_l = 0.0001     # Default variable
 
@@ -159,7 +159,7 @@ class Drone:
 
         lighthouse_available, phi, self.meas_record = compute_anchor_meas(self.state_truth_arr[k],
                                                                             self.state_truth_arr[k - 1],
-                                                                            self.meas_record, xp_obj)
+                                                                            self.meas_record, self.xp_obj)
 
         # decide if lighthouse measurement is available
         # if mod(k*dt, lighthouse_dt)==0
@@ -186,7 +186,7 @@ class Drone:
             # calculate H
             # TODO: Switch to transposing function
             r = np.linalg.norm(np.array([xp_vec[0:2]]).T - [[x_a], [y_a]])
-            angle = np.arctan2(xp_obj.y - y_a, xp_obj.x - x_a)
+            angle = np.arctan2(self.xp_obj.y - y_a, self.xp_obj.x - x_a)
             H_mat = np.array([[-np.sin(angle) / r, np.cos(angle) / r, 0, 0, 0],
                                [0, 0, 1, 0, 0]])
 
@@ -194,7 +194,7 @@ class Drone:
             M = np.array([[1, 0], [0, 1]])
 
             # calculate zhat
-            zhat = np.array([[angle], [xp_obj.theta]])
+            zhat = np.array([[angle], [self.xp_obj.theta]])
 
             # calculate R(noise covariance matrix)
             compass_w = 0.001 * 0.001
@@ -211,7 +211,7 @@ class Drone:
             z = [((self.state_truth_arr[k].theta + c_noise + PI) % (2 * PI)) - PI]
 
             # calc zhat
-            zhat = [xp_obj.theta]
+            zhat = [self.xp_obj.theta]
 
             # calculate H
             H_mat = np.array([[0, 0, 1, 0, 0]])
@@ -355,7 +355,7 @@ class Drone:
         self.ay_m.append(self.ay[k - 1] + np.random.randn() * ay_n)
 
         # step true state and save its vector
-        xp_obj, xp_vec = self.measurement_move()
+        self.xp_obj, xp_vec = self.measurement_move()
 
         # sig_l = 0.0001     # Default variable
 
@@ -385,7 +385,7 @@ class Drone:
         # decide whether the lighthouse robot is crossing an anchor
         lighthouse_available, phi, self.meas_record = compute_lighthouse_meas(self.state_truth_arr[k],
                                                                             self.state_truth_arr[k - 1],
-                                                                            self.meas_record, xp_obj)
+                                                                            self.meas_record, self.xp_obj)
 
 
         # decide if lighthouse measurement is available
@@ -413,7 +413,7 @@ class Drone:
             # calculate H
             # TODO: Switch to transposing function
             r = np.linalg.norm(np.array([xp_vec[0:2]]).T - [[x_a], [y_a]])
-            angle = np.arctan2(xp_obj.y - y_a, xp_obj.x - x_a)
+            angle = np.arctan2(self.xp_obj.y - y_a, self.xp_obj.x - x_a)
             H_mat = np.array([[-np.sin(angle) / r, np.cos(angle) / r, 0, 0, 0],
                               [0, 0, 1, 0, 0]])
 
@@ -421,7 +421,7 @@ class Drone:
             M = np.array([[1, 0], [0, 1]])
 
             # calculate zhat
-            zhat = np.array([[angle], [xp_obj.theta]])
+            zhat = np.array([[angle], [self.xp_obj.theta]])
 
             # calculate R(noise covariance matrix)
             compass_w = 0.001 * 0.001
@@ -438,7 +438,7 @@ class Drone:
             z = [((self.state_truth_arr[k].theta + c_noise + PI) % (2 * PI)) - PI]
 
             # calc zhat
-            zhat = [xp_obj.theta]
+            zhat = [self.xp_obj.theta]
 
             # calculate H
             H_mat = np.array([[0, 0, 1, 0, 0]])
@@ -602,7 +602,7 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
     for i in range(len(match_idx)):
         if match_idx[i][0]:
             phi_matches.append(phis_k[i][0])
-            match_locs.append([lighthouse_drones[i].state_truth_arr[k].x, lighthouse_drones[i].state_truth_arr[k].y])
+            match_locs.append([lighthouse_drones[i].xp_obj[k].x, lighthouse_drones[i].xp_obj.y])
 
     # If the robot didn't cross an anchor
     if len(phi_matches) == 0:
