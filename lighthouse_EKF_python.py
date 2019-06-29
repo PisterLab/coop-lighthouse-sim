@@ -274,7 +274,6 @@ class Drone:
         self.Pp.append(self.Pm[k-1])
 
         lighthouse_available, z, self.meas_record = compute_lighthouse_meas(self.state_truth_arr[k], self.state_truth_arr[k-1], self.meas_record, xp, k)
-        
 
         if lighthouse_available:
             h = np.arctan2(xp[1] - self.meas_record[-1][3], xp[0] - self.meas_record[-1][2])
@@ -616,7 +615,8 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
         # Store where we think the robot is and which anchor it crossed
         meas_record.append([state_estimate[0], state_estimate[1],
                             match_locs[0][0], match_locs[0][1]])  # store measurement vector
-        
+
+        # TODO: figure out noise integration
         phi_final = phi_matches[0] + compass_n
 
     return lighthouse, phi_final, meas_record
