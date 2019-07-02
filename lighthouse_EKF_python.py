@@ -577,9 +577,10 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
     y_column = np.array([l.state_truth_arr[k].y for l in lighthouse_drones])
 
     # calculate headings from all lighthouses to unknown anchor
-    phis_k = np.arctan2(y_column - state_truth.y, x_column - state_truth.x)[:,None]
+    # try switching y_column and state truth to fix bug
+    phis_k = np.arctan2(state_truth.y - y_column, state_truth.x - x_column)[:,None]
     # calculate headings from all lighthouses to unknown anchor from previous state
-    phis_prev = np.arctan2(y_column - state_truth_prev.y, x_column - state_truth_prev.x)[:,None]
+    phis_prev = np.arctan2(state_truth_prev.y - y_column, state_truth_prev.x - x_column)[:,None]
 
     # calc anchor distances from robot
     # This is unused so I don't know why it's here
