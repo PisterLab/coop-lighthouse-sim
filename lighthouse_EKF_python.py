@@ -270,25 +270,26 @@ class Drone:
         self.state_truth_vec = np.hstack((self.state_truth_vec,
                                           StateTruth.vectorize(self.state_truth_arr[k])[:, None]))
 
-        xp = self.xm_vec[0:2, k-1]
+        xp_vec = self.xm_vec[0:2, k-1]
+        self.xp_obj = StateTruth.devectorize(np.hstack((xp_vec, [0,0,0])))
         self.Pp.append(self.Pm[k-1])
 
-        lighthouse_available, z, self.meas_record = compute_lighthouse_meas(self.state_truth_arr[k], self.state_truth_arr[k-1], self.meas_record, xp, k)
+        lighthouse_available, z, self.meas_record = compute_lighthouse_meas(self.state_truth_arr[k], self.state_truth_arr[k-1], self.meas_record, self.xp_obj)
 
         if lighthouse_available:
-            h = np.arctan2(xp[1] - self.meas_record[-1][3], xp[0] - self.meas_record[-1][2])
+            h = np.arctan2(xp_vec[1] - self.meas_record[-1][3], xp_vec[0] - self.meas_record[-1][2])
 
             lighthouse_xy = self.meas_record[-1][2:]
 
-            r = np.linalg.norm(xp - lighthouse_xy)
-            angle = ((np.arctan2(xp[1] - lighthouse_xy[1], xp[0] - lighthouse_xy[0]) + PI) % (2*PI)) - PI
+            r = np.linalg.norm(xp_vec - lighthouse_xy)
+            angle = ((np.arctan2(xp_vec[1] - lighthouse_xy[1], xp_vec[0] - lighthouse_xy[0]) + PI) % (2*PI)) - PI
             H = (1/r) * np.array([-np.sin(angle), np.cos(angle)])
             # H = [-(x_p(2,i)-y_l(i))/norm(x_p(:,i)-X_l(:,i))^2 , (x_p(1,i)-x_l(i))/norm(x_p(:,i)-X_l(:,i))^2;
             #      -10*(x_p(1,i)-x_l(i))/(log(10)* norm(x_p(:,i)-X_l(:,i))^2), -10*(x_p(2,i)-y_l(i))/(log(10)* norm(x_p(:,i)-X_l(:,i))^2)];
 
 
-            W = np.array([[(xp[1] - lighthouse_xy[1]) / np.power(np.linalg.norm(xp - lighthouse_xy), 2), -(xp[0] - lighthouse_xy[0]) / np.power(np.linalg.norm(xp - lighthouse_xy), 2), 1, 0],
-                            [10 * (xp[0] - lighthouse_xy[0]) / (np.log(10) * np.power(np.linalg.norm(xp - lighthouse_xy), 2)), 10*(xp[1]-lighthouse_xy[1]) / (np.log(10) * np.power(np.linalg.norm(xp - lighthouse_xy), 2)), 0 ,1]])
+            W = np.array([[(xp_vec[1] - lighthouse_xy[1]) / np.power(np.linalg.norm(xp_vec - lighthouse_xy), 2), -(xp_vec[0] - lighthouse_xy[0]) / np.power(np.linalg.norm(xp_vec- lighthouse_xy), 2), 1, 0],
+                            [10 * (xp_vec[0] - lighthouse_xy[0]) / (np.log(10) * np.power(np.linalg.norm(xp_vec- lighthouse_xy), 2)), 10*(xp_vec[1]-lighthouse_xy[1]) / (np.log(10) * np.power(np.linalg.norm(xp_vec- lighthouse_xy), 2)), 0 ,1]])
 
             R = np.array([np.append(P_l[0,:],[0]),
                         np.append(P_l[1,:], [0]),
@@ -305,7 +306,7 @@ class Drone:
             z_h_diff = ((z-h + PI) % (2*PI)) - PI
 
 
-            new_xm_xy = np.array(xp[:,None] + K * z_h_diff)
+            new_xm_xy = np.array(xp_vec[:,None] + K * z_h_diff)
             new_xm = np.append(new_xm_xy, np.zeros((3,1)), axis=0)
 
             self.xm_vec = np.append(self.xm_vec, new_xm, axis=1)
@@ -344,9 +345,28 @@ class Drone:
         self.xm_obj[k - 1] = StateTruth(self.xm_vec[0], self.xm_vec[1], self.xm_vec[2], self.xm_vec[3], self.xm_vec[4])
 
     def measurement_move(self):
-        return self.default_lighthouse_move()
+        assert self.drone_type == DroneType.measurement_robot
 
-    def run_measurement(self):
+        self.state_truth_arr.append(StateTruth.step_dynamics_ekf(self.state_truth_arr[k - 1], self.omega[k - 1],
+                                                                 self.ax[k - 1], self.ay[k - 1], dt))
+        self.state_truth_vec = np.hstack((self.state_truth_vec,
+                                          StateTruth.vectorize(self.state_truth_arr[k])[:, None]))
+
+        # Prior update/Prediction step
+
+        # Calculate Xp using previous measured x (aka xm)
+        xp_obj = StateTruth.step_dynamics_ekf(self.xm_obj[k - 1], self.omega_m[k - 1], self.ax_m[k - 1],
+                                              self.ay_m[k - 1], dt)
+        xp_vec = StateTruth.vectorize(xp_obj)
+        return xp_obj, xp_vec
+
+    def change_to_measurement(self):
+        self.drone_type = DroneType.measurement_robot
+
+    def run_measurement(self, k):
+        if self.drone_type != DroneType.measurement_robot:
+            self.change_to_measurement()
+
         assert k >= 1
         # corrupt IMU inputs with noise (aka sensor measurements will have some noise)
         self.omega_m.append(self.omega[k - 1] + np.random.randn() * omega_n)
@@ -392,7 +412,6 @@ class Drone:
         if lighthouse_available:
         # lighthouse measurement is available
 
-        # choose anchor
         # currently useless, I guess we can just keep track of which anchor?
             self.anchor_counter = (self.anchor_counter + 1) % n_anchors
 
@@ -566,14 +585,15 @@ def compute_anchor_meas(state_truth, state_truth_prev, meas_record, state_estima
         meas_record.append([state_estimate.x, state_estimate.y,
                             match_locs[0][0], match_locs[0][1]])  # store measurement vector
         phi_final = phi_matches[0]
+
     return lighthouse, phi_final, meas_record
 
 
-def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_estimate, k):
+def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_estimate):
     num_lighthouses = len(lighthouse_drones)
 
-    x_column = np.array([l.state_truth_arr[k].x for l in lighthouse_drones])
-    y_column = np.array([l.state_truth_arr[k].y for l in lighthouse_drones])
+    x_column = np.array([l.state_truth_arr[-1].x for l in lighthouse_drones])
+    y_column = np.array([l.state_truth_arr[-1].y for l in lighthouse_drones])
 
     # calculate headings from all lighthouses to unknown anchor
     # try switching y_column and state truth to fix bug
@@ -586,9 +606,9 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
     # ds = np.linalg.norm(X_a - np.tile([state_truth.x,state_truth.y], (num_anchors, 1)), 2, 1)
 
     # find a phi that matches current
-    phi_robot_vec_k = np.array([(l.state_truth_arr[k].theta + PI) % (2 * PI) - PI for l in lighthouse_drones])[:,None]
+    phi_robot_vec_k = np.array([(l.state_truth_arr[-1].theta + PI) % (2 * PI) - PI for l in lighthouse_drones])[:,None]
 
-    phi_robot_vec_prev = np.array([(l.state_truth_arr[k - 1].theta + PI) % (2 * PI) - PI for l in lighthouse_drones])[:,None]
+    phi_robot_vec_prev = np.array([(l.state_truth_arr[-2].theta + PI) % (2 * PI) - PI for l in lighthouse_drones])[:,None]
 
     phi_product = np.multiply((phis_k - phi_robot_vec_k + PI) % (2 * PI) - PI,
                               (phis_prev - phi_robot_vec_prev + PI) % (2 * PI) - PI)
@@ -616,11 +636,11 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
         lighthouse = True
 
         # Store where we think the robot is and which anchor it crossed
-        meas_record.append([state_estimate[0], state_estimate[1],
+        meas_record.append([state_estimate.x, state_estimate.y,
                             match_locs[0][0], match_locs[0][1]])  # store measurement vector
 
         # TODO: figure out noise integration
-        phi_final = phi_matches[0] + compass_n
+        phi_final = phi_matches[0]
 
     return lighthouse, phi_final, meas_record
 
@@ -670,18 +690,30 @@ meas_diff = [0]     # UNUSED
 light_noise = [0]   # UNUSED
 
 d1 = Drone()
+d2 = Drone(x=7.5, y=7.5)
 d3 = Drone(np.random.rand() * area_size, np.random.rand() * area_size)
 
-drones = [d1, d3]
+drones = [d1, d2, d3]
 lighthouse_drones = [d1]
 anchor_drones = [d3]
+measurement_drones = [d2]
 
 for k in range(1, timesteps):
     for d in lighthouse_drones:
         d.run_lighthouse(k)
     for d in anchor_drones:
         d.run_anchor(k)
+    for d in measurement_drones:
+        d.run_measurement(k)
 
+plt.scatter(d2.state_truth_vec[0, ::100], d2.state_truth_vec[1, ::100],   # state truths
+                    linewidths=0.001, marker=".", color='m')
+plt.plot(d2.state_truth_vec[0, :], d2.state_truth_vec[1, :], color='m')
+
+plt.scatter(d2.xm_vec[0, ::100], d2.xm_vec[1, ::100],     # measured paths
+                    linewidths=0.001, marker=".", color='b')
+plt.plot(d2.xm_vec[0, :], d2.xm_vec[1, :], color='b')
+plt.show()
 
 if plot_run:
     for d in drones:
