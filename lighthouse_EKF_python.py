@@ -403,16 +403,16 @@ class Drone:
 
         # decide whether the lighthouse robot is crossing an anchor
         lighthouse_available, phi, self.meas_record = compute_lighthouse_meas(self.state_truth_arr[k],
-                                                                            self.state_truth_arr[k - 1],
-                                                                            self.meas_record, self.xp_obj)
-
+                                                                              self.state_truth_arr[k - 1],
+                                                                              self.meas_record, self.xp_obj)
 
         # decide if lighthouse measurement is available
         # if mod(k*dt, lighthouse_dt)==0
         if lighthouse_available:
-        # lighthouse measurement is available
+            # lighthouse measurement is available
 
-        # currently useless, I guess we can just keep track of which anchor?
+            # choose anchor
+            # currently useless, I guess we can just keep track of which anchor?
             self.anchor_counter = (self.anchor_counter + 1) % n_anchors
 
             x_a = self.meas_record[len(self.meas_record) - 1][2]
@@ -562,6 +562,7 @@ def compute_anchor_meas(state_truth, state_truth_prev, meas_record, state_estima
     phi_product = np.multiply((phis_k - phi_robot_vec_k + PI) % (2 * PI) - PI,
                               (phis_prev - phi_robot_vec_prev + PI) % (2 * PI) - PI)
     match_idx = phi_product <= 0
+
     # match_idx = abs(phis_k - repmat(phi_robot_k,num_anchors,1)) < MATCH_THRESH
     phi_matches = []
     match_locs = []
@@ -589,17 +590,22 @@ def compute_anchor_meas(state_truth, state_truth_prev, meas_record, state_estima
     return lighthouse, phi_final, meas_record
 
 
+# TODO: fix this function!! Very buggy rn
 def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_estimate):
     num_lighthouses = len(lighthouse_drones)
 
-    x_column = np.array([l.state_truth_arr[-1].x for l in lighthouse_drones])
-    y_column = np.array([l.state_truth_arr[-1].y for l in lighthouse_drones])
+    x_column = np.array([l.state_truth_arr[-1].x for l in lighthouse_drones])[:,None]
+    y_column = np.array([l.state_truth_arr[-1].y for l in lighthouse_drones])[:,None]
+
+    x_column_prev = np.array([l.state_truth_arr[-2].x for l in lighthouse_drones])[:,None]
+    y_column_prev = np.array([l.state_truth_arr[-2].y for l in lighthouse_drones])[:,None]
 
     # calculate headings from all lighthouses to unknown anchor
     # try switching y_column and state truth to fix bug
-    phis_k = np.arctan2(state_truth.y - y_column, state_truth.x - x_column)[:,None]
+    phis_k = np.arctan2(y_column - state_truth.y, x_column - state_truth.x)
+
     # calculate headings from all lighthouses to unknown anchor from previous state
-    phis_prev = np.arctan2(state_truth_prev.y - y_column, state_truth_prev.x - x_column)[:,None]
+    phis_prev = np.arctan2(y_column_prev - state_truth_prev.y,  x_column_prev - state_truth_prev.x)
 
     # calc anchor distances from robot
     # This is unused so I don't know why it's here
@@ -612,6 +618,7 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
 
     phi_product = np.multiply((phis_k - phi_robot_vec_k + PI) % (2 * PI) - PI,
                               (phis_prev - phi_robot_vec_prev + PI) % (2 * PI) - PI)
+
     match_idx = phi_product <= 0
     # if len(np.shape(match_idx)) == 1:
     #     match_idx = match_idx[:, None]
@@ -635,12 +642,12 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
     else:
         lighthouse = True
 
-        # Store where we think the robot is and which anchor it crossed
+        # Store where we think the robot is and which lighthouse crossed it
         meas_record.append([state_estimate.x, state_estimate.y,
                             match_locs[0][0], match_locs[0][1]])  # store measurement vector
 
         # TODO: figure out noise integration
-        phi_final = phi_matches[0]
+        phi_final = phi_matches[0] + PI
 
     return lighthouse, phi_final, meas_record
 
