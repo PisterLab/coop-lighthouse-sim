@@ -424,14 +424,26 @@ class Drone:
             sig_l = math.sqrt(self.Pp[k - 1][2][2])
             # l_noise = randn * compass_n
             # l_noise = xp_obj.theta - phi     # this is the actual error of lighthouse i believe
-
             z = np.array([[((phi + l_noise + PI) % (2 * PI)) - PI],
                           [((self.state_truth_arr[k].theta + c_noise + PI) % (2 * PI)) - PI]])
+
+            """
+                        print()
+            print("Real lighthouse position:",
+                  [lighthouse_drones[0].state_truth_arr[k].x, lighthouse_drones[0].state_truth_arr[k].y])
+            print("Predicted lighthouse position:", [x_a, y_a])
+            print("Real measurement position:", [self.state_truth_arr[k].x, self.state_truth_arr[k].y])
+            print("Predicted measurement position", [self.xp_obj.x, self.xp_obj.y])
+            print("Real r:",
+                  np.linalg.norm(np.array([[self.state_truth_arr[k].x], [self.state_truth_arr[k].y]]) - [[x_a], [y_a]]))
+            print("Real angle:", np.arctan2(self.state_truth_arr[k].y - y_a, self.state_truth_arr[k].x - x_a))
+            """
 
             # calculate H
             # TODO: Switch to transposing function
             r = np.linalg.norm(np.array([xp_vec[0:2]]).T - [[x_a], [y_a]])
             angle = np.arctan2(self.xp_obj.y - y_a, self.xp_obj.x - x_a)
+
             H_mat = np.array([[-np.sin(angle) / r, np.cos(angle) / r, 0, 0, 0],
                               [0, 0, 1, 0, 0]])
 
@@ -449,6 +461,8 @@ class Drone:
             # TODO: Switch to transposing function
             kalman_gain = np.dot(np.dot(self.Pp[k], H_mat.T), np.linalg.inv(
                 np.dot(np.dot(H_mat, self.Pp[k]), H_mat.T) + np.dot(np.dot(M, R_mat), M.T)))
+            print("r:", r)
+
         else:
             # calc noise corrupted measurement
             c_noise = np.random.rand() * compass_n
@@ -590,7 +604,6 @@ def compute_anchor_meas(state_truth, state_truth_prev, meas_record, state_estima
     return lighthouse, phi_final, meas_record
 
 
-# TODO: fix this function!! Very buggy rn
 def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_estimate):
     num_lighthouses = len(lighthouse_drones)
 
@@ -602,10 +615,10 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
 
     # calculate headings from all lighthouses to unknown anchor
     # try switching y_column and state truth to fix bug
-    phis_k = np.arctan2(y_column - state_truth.y, x_column - state_truth.x)
+    phis_k = np.arctan2(state_truth.y - y_column, state_truth.x - x_column)
 
     # calculate headings from all lighthouses to unknown anchor from previous state
-    phis_prev = np.arctan2(y_column_prev - state_truth_prev.y,  x_column_prev - state_truth_prev.x)
+    phis_prev = np.arctan2(state_truth_prev.y - y_column_prev , state_truth_prev.x - x_column_prev)
 
     # calc anchor distances from robot
     # This is unused so I don't know why it's here
@@ -633,6 +646,7 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
             phi_matches.append(phis_k[i][0])
             match_locs.append([lighthouse_drones[i].xp_obj.x, lighthouse_drones[i].xp_obj.y])
 
+
     # If the robot didn't cross an anchor
     if len(phi_matches) == 0:
         lighthouse = False
@@ -647,7 +661,9 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
                             match_locs[0][0], match_locs[0][1]])  # store measurement vector
 
         # TODO: figure out noise integration
-        phi_final = phi_matches[0] + PI
+        # Adding PI makes it return the angle from robot to lighthouse instead of vice versa
+        phi_final = phi_matches[0]
+        print(phi_final)
 
     return lighthouse, phi_final, meas_record
 
@@ -700,9 +716,9 @@ d1 = Drone()
 d2 = Drone(x=7.5, y=7.5)
 d3 = Drone(np.random.rand() * area_size, np.random.rand() * area_size)
 
-drones = [d1, d2, d3]
+drones = [d1, d2]
 lighthouse_drones = [d1]
-anchor_drones = [d3]
+anchor_drones = []
 measurement_drones = [d2]
 
 for k in range(1, timesteps):
@@ -712,7 +728,7 @@ for k in range(1, timesteps):
         d.run_anchor(k)
     for d in measurement_drones:
         d.run_measurement(k)
-
+"""
 plt.scatter(d2.state_truth_vec[0, ::100], d2.state_truth_vec[1, ::100],   # state truths
                     linewidths=0.001, marker=".", color='m')
 plt.plot(d2.state_truth_vec[0, :], d2.state_truth_vec[1, :], color='m')
@@ -721,6 +737,7 @@ plt.scatter(d2.xm_vec[0, ::100], d2.xm_vec[1, ::100],     # measured paths
                     linewidths=0.001, marker=".", color='b')
 plt.plot(d2.xm_vec[0, :], d2.xm_vec[1, :], color='b')
 plt.show()
+"""
 
 if plot_run:
     for d in drones:
