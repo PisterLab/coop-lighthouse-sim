@@ -405,16 +405,11 @@ class Drone:
         lighthouse_available, phi, self.meas_record = compute_lighthouse_meas(self.state_truth_arr[k],
                                                                               self.state_truth_arr[k - 1],
                                                                               self.meas_record, self.xp_obj)
-
         # decide if lighthouse measurement is available
         # if mod(k*dt, lighthouse_dt)==0
         if lighthouse_available:
             # lighthouse measurement is available
-
-            # choose anchor
-            # currently useless, I guess we can just keep track of which anchor?
-            self.anchor_counter = (self.anchor_counter + 1) % n_anchors
-
+            # choose lighthouse location
             x_a = self.meas_record[len(self.meas_record) - 1][2]
             y_a = self.meas_record[len(self.meas_record) - 1][3]
 
@@ -424,21 +419,9 @@ class Drone:
             sig_l = math.sqrt(self.Pp[k - 1][2][2])
             # l_noise = randn * compass_n
             # l_noise = xp_obj.theta - phi     # this is the actual error of lighthouse i believe
+
             z = np.array([[((phi + l_noise + PI) % (2 * PI)) - PI],
                           [((self.state_truth_arr[k].theta + c_noise + PI) % (2 * PI)) - PI]])
-
-            """
-                        print()
-            print("Real lighthouse position:",
-                  [lighthouse_drones[0].state_truth_arr[k].x, lighthouse_drones[0].state_truth_arr[k].y])
-            print("Predicted lighthouse position:", [x_a, y_a])
-            print("Real measurement position:", [self.state_truth_arr[k].x, self.state_truth_arr[k].y])
-            print("Predicted measurement position", [self.xp_obj.x, self.xp_obj.y])
-            print("Real r:",
-                  np.linalg.norm(np.array([[self.state_truth_arr[k].x], [self.state_truth_arr[k].y]]) - [[x_a], [y_a]]))
-            print("Real angle:", np.arctan2(self.state_truth_arr[k].y - y_a, self.state_truth_arr[k].x - x_a))
-            """
-
             # calculate H
             # TODO: Switch to transposing function
             r = np.linalg.norm(np.array([xp_vec[0:2]]).T - [[x_a], [y_a]])
@@ -461,7 +444,6 @@ class Drone:
             # TODO: Switch to transposing function
             kalman_gain = np.dot(np.dot(self.Pp[k], H_mat.T), np.linalg.inv(
                 np.dot(np.dot(H_mat, self.Pp[k]), H_mat.T) + np.dot(np.dot(M, R_mat), M.T)))
-            print("r:", r)
 
         else:
             # calc noise corrupted measurement
@@ -663,7 +645,6 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
         # TODO: figure out noise integration
         # Adding PI makes it return the angle from robot to lighthouse instead of vice versa
         phi_final = phi_matches[0]
-        print(phi_final)
 
     return lighthouse, phi_final, meas_record
 
@@ -715,10 +696,11 @@ light_noise = [0]   # UNUSED
 d1 = Drone()
 d2 = Drone(x=7.5, y=7.5)
 d3 = Drone(np.random.rand() * area_size, np.random.rand() * area_size)
+d4 = Drone(x=7, y=3)
 
-drones = [d1, d2]
-lighthouse_drones = [d1]
-anchor_drones = []
+drones = [d1, d2, d3, d4]
+lighthouse_drones = [d1, d4]
+anchor_drones = [d3]
 measurement_drones = [d2]
 
 for k in range(1, timesteps):
