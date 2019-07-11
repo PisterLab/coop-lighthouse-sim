@@ -589,7 +589,6 @@ def compute_anchor_meas(state_truth, state_truth_prev, meas_record, state_estima
 
 
 def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_estimate):
-    num_lighthouses = len(lighthouse_drones)
 
     x_column = np.array([l.state_truth_arr[-1].x for l in lighthouse_drones])[:,None]
     y_column = np.array([l.state_truth_arr[-1].y for l in lighthouse_drones])[:,None]
@@ -645,16 +644,15 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
                             match_locs[0][0], match_locs[0][1]])  # store measurement vector
 
         # TODO: figure out noise integration
-        # Adding PI makes it return the angle from robot to lighthouse instead of vice versa
         phi_final = phi_matches[0]
 
     return lighthouse, phi_final, meas_record
 
-
+num_drones = 4
 iterations = 100
 errors = []
-num_drones = 4 # TODO: find a better way to do this
 
+plot_save = False
 plot_run = True
 for i in range(iterations):
 
@@ -717,18 +715,7 @@ for i in range(iterations):
         for d in measurement_drones:
             d.run_measurement(k)
 
-    """
-    plt.scatter(d2.state_truth_vec[0, ::100], d2.state_truth_vec[1, ::100],   # state truths
-                        linewidths=0.001, marker=".", color='m')
-    plt.plot(d2.state_truth_vec[0, :], d2.state_truth_vec[1, :], color='m')
-
-    plt.scatter(d2.xm_vec[0, ::100], d2.xm_vec[1, ::100],     # measured paths
-                        linewidths=0.001, marker=".", color='b')
-    plt.plot(d2.xm_vec[0, :], d2.xm_vec[1, :], color='b')
-    plt.show()
-    """
-
-    if plot_run:
+    if plot_save:
         drone_errors = []
         for d in drones:
             drone_errors.append(np.linalg.norm(d.state_truth_vec[0:2, -1] - d.xm_vec[0:2, -1]))
@@ -750,11 +737,11 @@ for i in range(iterations):
             
         plt.savefig('plots/plot_%s' % i)
 
-if plot_run:
+if plot_save:
     for j in range(num_drones):
         error = [drone_error[j] for drone_error in errors]
         plt.figure()
-        plt.hist(error,100)
+        plt.hist(error, 100)
         plt.title('Error After 5000 Timesteps', fontsize = 20)
         plt.xlabel('L2 Norm Error (m)', fontsize = 16)
         plt.ylabel('Count', fontsize=16)
