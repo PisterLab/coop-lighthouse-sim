@@ -653,7 +653,6 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
 
 iterations = 100
 errors = []
-num_drones = 4 # TODO: find a better way to do this
 
 plot_run = True
 for i in range(iterations):
@@ -717,17 +716,6 @@ for i in range(iterations):
         for d in measurement_drones:
             d.run_measurement(k)
 
-    """
-    plt.scatter(d2.state_truth_vec[0, ::100], d2.state_truth_vec[1, ::100],   # state truths
-                        linewidths=0.001, marker=".", color='m')
-    plt.plot(d2.state_truth_vec[0, :], d2.state_truth_vec[1, :], color='m')
-
-    plt.scatter(d2.xm_vec[0, ::100], d2.xm_vec[1, ::100],     # measured paths
-                        linewidths=0.001, marker=".", color='b')
-    plt.plot(d2.xm_vec[0, :], d2.xm_vec[1, :], color='b')
-    plt.show()
-    """
-
     if plot_run:
         drone_errors = []
         for d in drones:
@@ -751,10 +739,10 @@ for i in range(iterations):
         plt.savefig('plots/plot_%s' % i)
 
 if plot_run:
-    for j in range(num_drones):
+    for j in range(len(drones)):
         error = [drone_error[j] for drone_error in errors]
         plt.figure()
-        plt.hist(error,100)
+        plt.hist(error, 100)
         plt.title('Error After 5000 Timesteps', fontsize = 20)
         plt.xlabel('L2 Norm Error (m)', fontsize = 16)
         plt.ylabel('Count', fontsize=16)
