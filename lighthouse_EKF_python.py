@@ -730,7 +730,7 @@ for i in range(iterations):
         drone_errors = []
         for d in drones:
             drone_errors.append(np.linalg.norm(d.state_truth_vec[0:2, -1] - d.xm_vec[0:2, -1]))
-            plt.figure(1)
+            plt.figure(i)
             plt.scatter(X_a[:, 0], X_a[:, 1], color='black')        # anchor points
 
             plt.scatter(d.state_truth_vec[0, ::100], d.state_truth_vec[1, ::100],   # state truths
