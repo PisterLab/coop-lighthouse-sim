@@ -589,7 +589,6 @@ def compute_anchor_meas(state_truth, state_truth_prev, meas_record, state_estima
 
 
 def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_estimate):
-    num_lighthouses = len(lighthouse_drones)
 
     x_column = np.array([l.state_truth_arr[-1].x for l in lighthouse_drones])[:,None]
     y_column = np.array([l.state_truth_arr[-1].y for l in lighthouse_drones])[:,None]
@@ -645,7 +644,6 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
                             match_locs[0][0], match_locs[0][1]])  # store measurement vector
 
         # TODO: figure out noise integration
-        # Adding PI makes it return the angle from robot to lighthouse instead of vice versa
         phi_final = phi_matches[0]
 
     return lighthouse, phi_final, meas_record
