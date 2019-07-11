@@ -60,6 +60,8 @@ class Drone:
         self.r_diffy = []
         self.last_direction = np.array([0, 0])[:, None]
 
+        self.error = []
+
     def default_lighthouse_move(self):
         assert self.drone_type == DroneType.lighthouse_robot
 
@@ -649,145 +651,111 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
     return lighthouse, phi_final, meas_record
 
 
-timesteps = 5000
-lighthouse_dt = .3      # UNUSED
-dt = 0.01
-P_l = np.diag([.05**2, .05**2, (1.5 * 3.1415 / 180)**2])    # covariance of lighthouse states
-x_l_0 = 1   # UNUSED
-y_l_0 = 1   # UNUSED
+iterations = 100
+errors = []
+num_drones = 4 # TODO: find a better way to do this
 
-iterations = 1000
 plot_run = True
+for i in range(iterations):
 
-# anchor locations
-n_anchors = 3
-area_size = 10      # length of one side of potential experiment area in meters
-X_a = np.random.rand(n_anchors, 2) * area_size      # matrix of anchors in 2D
-# X_a = np.array([[0.5773, 0.31849]])
-# X_a(1,:) = [0.234076005284792,6.43920174599930]
-# X_a = np.array([[0.5773, 0.31849], [0.234076005284792, 6.43920174599930], [4, 5]])
+    timesteps = 5000
+    lighthouse_dt = .3      # UNUSED
+    dt = 0.01
+    P_l = np.diag([.05**2, .05**2, (1.5 * 3.1415 / 180)**2])    # covariance of lighthouse states
+    x_l_0 = 1   # UNUSED
+    y_l_0 = 1   # UNUSED
 
-# noise standard deviations
-ax_n = 0.08
-ay_n = 0.08
-omega_n = 0.01
-light_n = 0.04
-compass_n = 0.001
+    # anchor locations
+    n_anchors = 3
+    area_size = 10      # length of one side of potential experiment area in meters
+    X_a = np.random.rand(n_anchors, 2) * area_size      # matrix of anchors in 2D
+    # X_a = np.array([[0.5773, 0.31849]])
+    # X_a(1,:) = [0.234076005284792,6.43920174599930]
+    # X_a = np.array([[0.5773, 0.31849], [0.234076005284792, 6.43920174599930], [4, 5]])
 
-# Don't quite understand why this is * 10 instead of just inputting the number desired
-g_x = 0.001 * 10        # standard deviations
-g_y = 0.001 * 10
-g_w = 0.001 * 10
-g_ax = 0.08
-g_ay = 0.08
+    # noise standard deviations
+    ax_n = 0.08
+    ay_n = 0.08
+    omega_n = 0.01
+    light_n = 0.04
+    compass_n = 0.001
 
-sig1 = .05
-sig2 = .05
-sig3 = 1.5 * 3.1415 / 180
-sig4 = 10
+    # Don't quite understand why this is * 10 instead of just inputting the number desired
+    g_x = 0.001 * 10        # standard deviations
+    g_y = 0.001 * 10
+    g_w = 0.001 * 10
+    g_ax = 0.08
+    g_ay = 0.08
 
-g = [g_x, g_y, g_w, g_ax, g_ay]
-Q = np.diag(np.multiply(g, g))
+    sig1 = .05
+    sig2 = .05
+    sig3 = 1.5 * 3.1415 / 180
+    sig4 = 10
+
+    g = [g_x, g_y, g_w, g_ax, g_ay]
+    Q = np.diag(np.multiply(g, g))
 
 
-meas_diff = [0]     # UNUSED
-light_noise = [0]   # UNUSED
+    meas_diff = [0]     # UNUSED
+    light_noise = [0]   # UNUSED
 
-d1 = Drone()
-d2 = Drone(x=7.5, y=7.5)
-d3 = Drone(np.random.rand() * area_size, np.random.rand() * area_size)
-d4 = Drone(x=7, y=3)
+    d1 = Drone()
+    d2 = Drone(x=7.5, y=7.5)
+    d3 = Drone(np.random.rand() * area_size, np.random.rand() * area_size)
+    d4 = Drone(x=7, y=3)
 
-drones = [d1, d2, d3, d4]
-lighthouse_drones = [d1, d4]
-anchor_drones = [d3]
-measurement_drones = [d2]
+    drones = [d1, d2, d3, d4]
+    lighthouse_drones = [d1, d4]
+    anchor_drones = [d3]
+    measurement_drones = [d2]
 
-for k in range(1, timesteps):
-    for d in lighthouse_drones:
-        d.run_lighthouse(k)
-    for d in anchor_drones:
-        d.run_anchor(k)
-    for d in measurement_drones:
-        d.run_measurement(k)
-"""
-plt.scatter(d2.state_truth_vec[0, ::100], d2.state_truth_vec[1, ::100],   # state truths
-                    linewidths=0.001, marker=".", color='m')
-plt.plot(d2.state_truth_vec[0, :], d2.state_truth_vec[1, :], color='m')
+    for k in range(1, timesteps):
+        for d in lighthouse_drones:
+            d.run_lighthouse(k)
+        for d in anchor_drones:
+            d.run_anchor(k)
+        for d in measurement_drones:
+            d.run_measurement(k)
 
-plt.scatter(d2.xm_vec[0, ::100], d2.xm_vec[1, ::100],     # measured paths
-                    linewidths=0.001, marker=".", color='b')
-plt.plot(d2.xm_vec[0, :], d2.xm_vec[1, :], color='b')
-plt.show()
-"""
+    """
+    plt.scatter(d2.state_truth_vec[0, ::100], d2.state_truth_vec[1, ::100],   # state truths
+                        linewidths=0.001, marker=".", color='m')
+    plt.plot(d2.state_truth_vec[0, :], d2.state_truth_vec[1, :], color='m')
+
+    plt.scatter(d2.xm_vec[0, ::100], d2.xm_vec[1, ::100],     # measured paths
+                        linewidths=0.001, marker=".", color='b')
+    plt.plot(d2.xm_vec[0, :], d2.xm_vec[1, :], color='b')
+    plt.show()
+    """
+
+    if plot_run:
+        drone_errors = []
+        for d in drones:
+            drone_errors.append(np.linalg.norm(d.state_truth_vec[0:2, -1] - d.xm_vec[0:2, -1]))
+            plt.figure(1)
+            plt.scatter(X_a[:, 0], X_a[:, 1], color='black')        # anchor points
+
+            plt.scatter(d.state_truth_vec[0, ::100], d.state_truth_vec[1, ::100],   # state truths
+                        linewidths=0.001, marker=".", color='m')
+            plt.plot(d.state_truth_vec[0, :], d.state_truth_vec[1, :], color='m')
+
+            plt.scatter(d.xm_vec[0, ::100], d.xm_vec[1, ::100],     # measured paths
+                        linewidths=0.001, marker=".", color='b')
+            plt.plot(d.xm_vec[0, :], d.xm_vec[1, :], color='b')
+
+            plt.scatter(d.state_truth_vec[0, 0], d.state_truth_vec[1, 0], color='g')      # actual start points
+            plt.scatter(d.xm_vec[0, -1], d.xm_vec[1, -1], color='r')     # measured endpoints
+
+        errors.append(drone_errors)    
+            
+        plt.savefig('plots/plot_%s' % i)
 
 if plot_run:
-    for d in drones:
-        plt.figure(1)
-        plt.scatter(X_a[:, 0], X_a[:, 1], color='black')        # anchor points
-
-        plt.scatter(d.state_truth_vec[0, ::100], d.state_truth_vec[1, ::100],   # state truths
-                    linewidths=0.001, marker=".", color='m')
-        plt.plot(d.state_truth_vec[0, :], d.state_truth_vec[1, :], color='m')
-
-        plt.scatter(d.xm_vec[0, ::100], d.xm_vec[1, ::100],     # measured paths
-                    linewidths=0.001, marker=".", color='b')
-        plt.plot(d.xm_vec[0, :], d.xm_vec[1, :], color='b')
-
-        plt.scatter(d.state_truth_vec[0, 0], d.state_truth_vec[1, 0], color='g')      # actual start points
-        plt.scatter(d.xm_vec[0, -1], d.xm_vec[1, -1], color='r')     # measured endpoints
-        # n_measures = size(anchor_record);
-        """
-        for i in range(1, len(d.anchor_record)):
-            x_d = d.anchor_record[i][0]
-            y_d = d.anchor_record[i][1]
-            anchor_x = d.anchor_record[i][2]
-            anchor_y = d.anchor_record[i][3]
-            delta = np.array([anchor_x, anchor_y]) - np.array([x_d, y_d])
-
-            # TODO: Figure out dashed lines
-            plt.quiver(x_d, y_d, delta[0], delta[1], angles='xy', scale_units='xy', scale=1, width=0.001,
-                       linestyle='dashed', color=['r', 'b', 'y', 'g', 'm'][i % 5])
-        """
-        """
-        plt.figure(2)
-
-        # pm plots
-        Pm = np.array(d.Pm)
-        Pp = np.array(d.Pp)
-
-        plt.subplot(2, 3, 1)
-        plt.semilogy(Pm[:, 2, 2])
-        plt.subplot(2, 3, 2)
-        plt.semilogy(Pp[:, 2, 2])
-
-        plt.subplot(2, 3, 3)
-        plt.semilogy(Pm[:, 0, 0])
-        plt.subplot(2, 3, 4)
-        plt.semilogy(Pm[:, 1, 1])
-        plt.subplot(2, 3, 5)
-        plt.semilogy(Pm[:, 3, 3])
-        plt.subplot(2, 3, 6)
-        plt.semilogy(Pm[:, 4, 4])
-
-        plt.figure(3)
-
-        # state plots
-        plt.subplot(2, 3, 1)
-        plt.plot(d.t, d.state_truth_vec[0, :], d.t, d.xm_vec[0, :])
-
-        plt.subplot(2, 3, 2)
-        plt.plot(d.t / dt, d.state_truth_vec[1, :], d.t / dt, d.xm_vec[1, :])
-
-        plt.subplot(2, 3, 3)
-        plt.plot(d.t, d.state_truth_vec[2, :], d.t, d.xm_vec[2, :])
-
-        plt.subplot(2, 3, 4)
-        plt.plot(d.t, d.state_truth_vec[3, :], d.t, d.xm_vec[3, :])
-
-        plt.subplot(2, 3, 5)
-        plt.plot(d.t, d.state_truth_vec[4, :], d.t, d.xm_vec[4, :])
-
-        plt.show()
-        """
-    plt.show()
+    for j in range(num_drones):
+        error = [drone_error[j] for drone_error in errors]
+        plt.figure()
+        plt.hist(error,100)
+        plt.title('Error After 5000 Timesteps', fontsize = 20)
+        plt.xlabel('L2 Norm Error (m)', fontsize = 16)
+        plt.ylabel('Count', fontsize=16)
+        plt.savefig('plots/error_%s' % j)
