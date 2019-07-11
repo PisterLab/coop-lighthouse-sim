@@ -648,7 +648,7 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
 
     return lighthouse, phi_final, meas_record
 
-
+num_drones = 4
 iterations = 100
 errors = []
 
@@ -737,7 +737,7 @@ for i in range(iterations):
         plt.savefig('plots/plot_%s' % i)
 
 if plot_run:
-    for j in range(len(drones)):
+    for j in range(num_drones):
         error = [drone_error[j] for drone_error in errors]
         plt.figure()
         plt.hist(error, 100)
