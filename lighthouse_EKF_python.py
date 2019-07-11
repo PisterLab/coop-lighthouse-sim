@@ -652,6 +652,7 @@ num_drones = 4
 iterations = 100
 errors = []
 
+plot_save = False
 plot_run = True
 for i in range(iterations):
 
@@ -714,7 +715,7 @@ for i in range(iterations):
         for d in measurement_drones:
             d.run_measurement(k)
 
-    if plot_run:
+    if plot_save:
         drone_errors = []
         for d in drones:
             drone_errors.append(np.linalg.norm(d.state_truth_vec[0:2, -1] - d.xm_vec[0:2, -1]))
@@ -736,7 +737,7 @@ for i in range(iterations):
             
         plt.savefig('plots/plot_%s' % i)
 
-if plot_run:
+if plot_save:
     for j in range(num_drones):
         error = [drone_error[j] for drone_error in errors]
         plt.figure()
