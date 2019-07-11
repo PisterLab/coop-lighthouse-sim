@@ -313,13 +313,13 @@ class Drone:
 
             self.xm_vec = np.append(self.xm_vec, new_xm, axis=1)
             self.xm_obj.append(StateTruth(self.xm_vec[0,k], self.xm_vec[1,k], self.xm_vec[2,k], self.xm_vec[3,k], self.xm_vec[4,k]))
-            
+
             new_Pm = np.zeros((5,5))
             new_Pm[0:2, 0:2] = np.array((np.identity(2) - K @ np.array([H])) @ self.Pp[k][0:2, 0:2])
             self.Pm.append(new_Pm)
 
         else:
-            
+
             self.xm_vec = np.append(self.xm_vec, self.xm_vec[:, -1][:,None], axis=1)
             self.xm_obj.append(self.xm_obj[-1])
             self.Pm.append(self.Pm[-1])
@@ -529,6 +529,16 @@ class StateTruth:
         vy = state_truth_prev.vy + (math.sin(state_truth_prev.theta) * ax + math.cos(state_truth_prev.theta) * ay) * dt
         return StateTruth(x, y, theta, vx, vy)
 
+    def perpindicular_step_dynamics(state_truth_prev, omega, ax, ay, dt):
+        # dynamic evolution function. Used for truth dynamics and for EKF prior
+        # updates
+        x = state_truth_prev.x + state_truth_prev.vx * dt
+        y = state_truth_prev.y + state_truth_prev.vy * dt
+        theta = (state_truth_prev.theta + dt * omega + 3.14159) % (2 * 3.14159) - 3.14159
+        vx = state_truth_prev.vx + (math.sin(state_truth_prev.theta) * ax + math.cos(state_truth_prev.theta) * ay) * dt
+        vy = state_truth_prev.vy + (math.cos(state_truth_prev.theta) * ax - math.sin(state_truth_prev.theta) * ay) * dt
+        return StateTruth(x, y, theta, vx, vy)
+
 
 def compute_anchor_meas(state_truth, state_truth_prev, meas_record, state_estimate):
     num_anchors = len(X_a)
@@ -654,6 +664,7 @@ errors = []
 
 plot_save = False
 plot_run = True
+
 for i in range(iterations):
 
     timesteps = 5000
@@ -733,8 +744,8 @@ for i in range(iterations):
             plt.scatter(d.state_truth_vec[0, 0], d.state_truth_vec[1, 0], color='g')      # actual start points
             plt.scatter(d.xm_vec[0, -1], d.xm_vec[1, -1], color='r')     # measured endpoints
 
-        errors.append(drone_errors)    
-            
+        errors.append(drone_errors)
+
         plt.savefig('plots/plot_%s' % i)
 
 if plot_save:
@@ -746,3 +757,20 @@ if plot_save:
         plt.xlabel('L2 Norm Error (m)', fontsize = 16)
         plt.ylabel('Count', fontsize=16)
         plt.savefig('plots/error_%s' % j)
+
+
+if plot_run:
+    for d in drones:
+        plt.figure(1)
+        plt.scatter(X_a[:, 0], X_a[:, 1], color='black')  # anchor points
+
+        plt.scatter(d.state_truth_vec[0, ::100], d.state_truth_vec[1, ::100],  # state truths
+                    linewidths=0.001, marker=".", color='m')
+        plt.plot(d.state_truth_vec[0, :], d.state_truth_vec[1, :], color='m')
+
+        plt.scatter(d.xm_vec[0, ::100], d.xm_vec[1, ::100],  # measured paths
+                    linewidths=0.001, marker=".", color='b')
+        plt.plot(d.xm_vec[0, :], d.xm_vec[1, :], color='b')
+
+        plt.scatter(d.state_truth_vec[0, 0], d.state_truth_vec[1, 0], color='g')  # actual start points
+        plt.scatter(d.xm_vec[0, -1], d.xm_vec[1, -1], color='r')  # measured endpoints
