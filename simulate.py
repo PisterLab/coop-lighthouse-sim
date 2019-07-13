@@ -63,7 +63,7 @@ timeConstRatesY  = 0.5   # [s]
 #==============================================================================
 # Define the position controller
 #==============================================================================
-disablePositionControl = True
+disablePositionControl = False
 posCtrlNatFreq = 1.5  # rad/s
 posCtrlDampingRatio = 0.7  # -
 
