@@ -17,15 +17,15 @@ class Vehicle:
         self._omega = Vec3(0,0,0)
 
         #imu measurements
-        self._acc_imu = Vec3(0,0,0) #body axis acceleration including gravity acc
-        self._omega_imu = Vec3(0,0,0) #body axis angular vel
-        self._mag_imu = Vec3(0,0,0) #body axis magnetometer 
+        self._accImu = Vec3(0,0,0) #body axis acceleration including gravity acc
+        self._omegaImu = Vec3(0,0,0) #body axis angular vel
+        self._magImu = Vec3(0,0,0) #body axis magnetometer 
 
         #imu object
-        acc_noise = Vec3(0.01,0.01,0.01) 
-        gyro_noise = Vec3(0.01,0.01,0.01)
-        mag_noise = Vec3(0.05,0.05,0.05)
-        self._imu = IMU(acc_noise,gyro_noise,mag_noise)
+        accStd = Vec3(0.01,0.01,0.01) 
+        gyroStd = Vec3(0.01,0.01,0.01)
+        magStd = Vec3(0.05,0.05,0.05)
+        self._imu = IMU(accStd,gyroStd,magStd)
 
 
         self._motors = []
@@ -73,7 +73,7 @@ class Vehicle:
         omega = self._omega
         
         #generate imu measurements
-        (self._acc_imu, self._omega_imu, self._mag_imu) = self._imu.get_imu_measurements(acc = acc, att = att, omega = omega) 
+        (self._accImu, self._omegaImu, self._magImu) = self._imu.get_imu_measurements(acc = acc, att = att, omega = omega) 
 
         #euler integration
         self._pos += vel*dt

@@ -5,16 +5,16 @@ from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py
 class IMU:
 
 	#earth's magnetic field vector in earth coordinates, assumed to be pointing in y
-	_ref_mag = Vec3(0,1,0)
+	_refMag = Vec3(0,1,0)
 
-	def __init__(self, acc_std, gyro_std, mag_std):
+	def __init__(self, accStd, gyroStd, magStd):
 
-		#assert acc_std.shape == (3,1); assert gyro_std.shape == (3,1); assert mag_std.shape == (3,1) 
-		#print(acc_std)
+		#assert accStd.shape == (3,1); assert gyroStd.shape == (3,1); assert magStd.shape == (3,1) 
+		#print(accStd)
 
-		self._acc_std = acc_std
-		self._gyro_std = gyro_std
-		self._mag_std= mag_std
+		self._accStd = accStd
+		self._gyroStd = gyroStd
+		self._magStd= magStd
 
 		#print(self._ref_mag)
 
@@ -22,17 +22,17 @@ class IMU:
 	def get_imu_measurements(self, acc, att, omega): 
 
 		#generate noise based on sensor noise model
-		acc_noise = Vec3(np.random.normal()*self._acc_std[0],np.random.normal()*self._acc_std[1],np.random.normal()*self._acc_std[2])
-		gyro_noise = Vec3(np.random.normal()*self._gyro_std[0],np.random.normal()*self._gyro_std[1],np.random.normal()*self._gyro_std[2])
-		mag_noise = Vec3(np.random.normal()*self._mag_std[0],np.random.normal()*self._mag_std[1],np.random.normal()*self._mag_std[2])
+		accNoise = Vec3(np.random.normal()*self._accStd[0],np.random.normal()*self._accStd[1],np.random.normal()*self._accStd[2])
+		gyroNoise = Vec3(np.random.normal()*self._gyroStd[0],np.random.normal()*self._gyroStd[1],np.random.normal()*self._gyroStd[2])
+		magNoise = Vec3(np.random.normal()*self._magStd[0],np.random.normal()*self._magStd[1],np.random.normal()*self._magStd[2])
 
 		#add gravity acceleration, which is measured by IMU, and rotate earth frame acceleration to body frame  
 		acc = att.inverse()*(acc + Vec3(0,0,-9.81))
-		
+
 		#add noise to true state to obtain measurement
-		acc += acc_noise
-		omega += gyro_noise
-		mag = att.inverse()*self._ref_mag + mag_noise
+		acc += accNoise
+		omega += gyroNoise
+		mag = att.inverse()*self._refMag + magNoise
 
 		#return measurement tuples 
 		return acc, omega, mag
