@@ -1,4 +1,6 @@
 
+from py3dmath import Vec3, Rotation
+
 class State:
     def __init__(self, x=0, y=0, theta=0, vx=0, vy=0):
         self.x = x
