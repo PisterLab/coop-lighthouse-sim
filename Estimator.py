@@ -88,21 +88,27 @@ class Estimator6Dof:
 		#TODO: covariance update
 
 		#position prediction
-		dposBody = self._state_m.vel * dt + Vec3(0,0,accImu[2]*dt*dt / 2.0)
-		self._state_p.pos = self._state_m.att * dposBody - Vec3(0,0,9.81*dt*dt / 2.0)
-
+		dposBody = self._state_m.vel * dt + Vec3(0,0,accImu[2]*dt*dt / 2.0) 
+		#self._state_p.pos = self._state_m.att * dposBody - Vec3(0,0,9.81*dt*dt / 2.0)
+		self._state_p.pos = self._state_m.pos + self._state_m.att * dposBody - Vec3(0,0,9.81*dt*dt / 2.0)
+		
 		#velocity prediction: zacc - gyro x vel - g_body 
 		gyroCross = gyroImu.to_cross_product_matrix()
-		self._state_p.vel = dt*(Vec3(0,0,accImu[2])-gyroCross*self._state_m.vel - self._state_m.att.inverse() * Vec3(0,0,9.81))
+		print("velocity cross")
+		print(self._state_m.att.inverse() * Vec3(0,0,9.81))
+		print(Vec3(0,0,accImu[2])-gyroCross*self._state_m.vel - self._state_m.att.inverse() * Vec3(0,0,9.81))
+		print(self._state_m.vel)
+		print(gyroCross*self._state_m.vel)
+		self._state_p.vel = self._state_p.vel + dt*(Vec3(0,0,accImu[2])-gyroCross*self._state_m.vel - self._state_m.att.inverse() * Vec3(0,0,9.81))
 
 		#attitude update
 		gyroRot = Rotation.from_rotation_vector(gyroImu*dt)
 		self._state_p.att = gyroRot*self._state_m.att
 		self._stateHistP.append(self._state_p)
-		
+
 	def kalmanUpdate(self, dt):
 		self._state_m = copy.deepcopy(self._state_p)
-		
+
 
 class State:
 	def __init__(self, pos, vel, d, att):

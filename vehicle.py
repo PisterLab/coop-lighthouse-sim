@@ -94,7 +94,7 @@ class Vehicle:
         if self._estimator == None:
             return
         else:
-            print("kalman predicting")
+            #print("kalman predicting")
             self._estimator.kalmanPredict(self._accImu,self._omegaImu,dt)
 
     def kalman_update(self, dt):
@@ -102,7 +102,7 @@ class Vehicle:
         if self._estimator == None:
             return
         else:
-            print("kalman updating")
+            #print("kalman updating")
             self._estimator.kalmanUpdate(dt)
     def set_position(self, pos):
         self._pos = pos

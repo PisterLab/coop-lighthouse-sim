@@ -114,6 +114,7 @@ times            = np.zeros([numSteps,1])
 
 #estimator history
 estPosHistory = np.zeros([numSteps,3])
+estVelHistory = np.zeros([numSteps,3])
 
 
 while index < numSteps:
@@ -143,6 +144,8 @@ while index < numSteps:
     angVelHistory[index,:]    = quadrocopter._omega.to_list()
     motForcesHistory[index,:] = quadrocopter.get_motor_forces()
     estPosHistory[index, :] = quadrocopter._estimator._state_p.pos.to_list() 
+    estVelHistory[index, :] = quadrocopter._estimator._state_p.vel.to_list() 
+
     t += dt
     index += 1
 
@@ -164,8 +167,8 @@ ax[3].plot(times, angVelHistory[:,0], label='p')
 ax[3].plot(times, angVelHistory[:,1], label='q')
 ax[3].plot(times, angVelHistory[:,2], label='r')
 ax[4].plot(times, inputHistory)
-ax[5].plot(times, estPosHistory[:, 0], label = 'est x')
-ax[5].plot(times, posHistory[:,0], label = 'x')
+ax[5].plot(times, estPosHistory, label = 'est x')
+#ax[5].plot(times, velHistory, label = 'x')
 #ax[4].plot(times, motForcesHistory,':')
 
 ax[-1].set_xlabel('Time [s]')
