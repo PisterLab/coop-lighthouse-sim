@@ -5,9 +5,10 @@ import numpy as np
 from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py3dmath
 from motor import Motor
 from imu import IMU
+from Estimator import Estimator6Dof
 
 class Vehicle:
-    def __init__(self, mass, inertiaMatrix, omegaSqrToDragTorque, disturbanceTorqueStdDev):
+    def __init__(self, mass, inertiaMatrix, omegaSqrToDragTorque, disturbanceTorqueStdDev,estimator = "6dof"):
         self._inertia = inertiaMatrix
         self._mass = mass
         
@@ -28,11 +29,18 @@ class Vehicle:
         self._imu = IMU(accStd,gyroStd,magStd)
 
 
+
         self._motors = []
         
         self._omegaSqrToDragTorque = omegaSqrToDragTorque
         
         self._disturbanceTorqueStdDev = disturbanceTorqueStdDev
+
+        #6dof kalman estimator
+        if estimator == "6dof":
+            self._estimator = Estimator6Dof(self._mass,self._inertia,self._omegaSqrToDragTorque, self._disturbanceTorqueStdDev, self._pos, self._vel, self._att)
+        else:
+            self._estimator = None
         return
         
 
@@ -74,13 +82,28 @@ class Vehicle:
         
         #generate imu measurements
         (self._accImu, self._omegaImu, self._magImu) = self._imu.get_imu_measurements(acc = acc, att = att, omega = omega) 
-
+        #print(self._accImu,acc)
         #euler integration
         self._pos += vel*dt
         self._vel += acc*dt
         self._att  = att*Rotation.from_rotation_vector(omega*dt)
         self._omega += angAcc*dt
-        
+    
+    def kalman_predict(self, dt):
+
+        if self._estimator == None:
+            return
+        else:
+            print("kalman predicting")
+            self._estimator.kalmanPredict(self._accImu,self._omegaImu,dt)
+
+    def kalman_update(self, dt):
+
+        if self._estimator == None:
+            return
+        else:
+            print("kalman updating")
+            self._estimator.kalmanUpdate(dt)
     def set_position(self, pos):
         self._pos = pos
         

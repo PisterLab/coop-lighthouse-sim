@@ -25,10 +25,11 @@ class IMU:
 		accNoise = Vec3(np.random.normal()*self._accStd[0],np.random.normal()*self._accStd[1],np.random.normal()*self._accStd[2])
 		gyroNoise = Vec3(np.random.normal()*self._gyroStd[0],np.random.normal()*self._gyroStd[1],np.random.normal()*self._gyroStd[2])
 		magNoise = Vec3(np.random.normal()*self._magStd[0],np.random.normal()*self._magStd[1],np.random.normal()*self._magStd[2])
-
+		print("in imu")
+		print(acc)
 		#add gravity acceleration, which is measured by IMU, and rotate earth frame acceleration to body frame  
 		acc = att.inverse()*(acc + Vec3(0,0,-9.81))
-
+		print(acc)
 		#add noise to true state to obtain measurement
 		acc += accNoise
 		omega += gyroNoise

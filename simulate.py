@@ -112,6 +112,10 @@ motForcesHistory = np.zeros([numSteps,quadrocopter.get_num_motors()])
 inputHistory     = np.zeros([numSteps,quadrocopter.get_num_motors()])
 times            = np.zeros([numSteps,1])
 
+#estimator history
+estPosHistory = np.zeros([numSteps,3])
+
+
 while index < numSteps:
     #define commands:
     accDes = posControl.get_acceleration_command(desPos, quadrocopter._pos, quadrocopter._vel)
@@ -126,6 +130,10 @@ while index < numSteps:
     #run the simulator
     quadrocopter.run(dt, motForceCmds)
 
+    #run the estimator
+    quadrocopter.kalman_predict(dt)
+    quadrocopter.kalman_update(dt)
+    #print(quadrocopter._estimator._state_p.pos)
     #for plotting
     times[index] = t
     inputHistory[index,:]     = motForceCmds
@@ -134,7 +142,7 @@ while index < numSteps:
     attHistory[index,:]       = quadrocopter._att.to_euler_YPR()
     angVelHistory[index,:]    = quadrocopter._omega.to_list()
     motForcesHistory[index,:] = quadrocopter.get_motor_forces()
-
+    estPosHistory[index, :] = quadrocopter._estimator._state_p.pos.to_list() 
     t += dt
     index += 1
 
@@ -142,7 +150,7 @@ while index < numSteps:
 # Make the plots
 #==============================================================================
    
-fig, ax = plt.subplots(5,1, sharex=True)
+fig, ax = plt.subplots(6,1, sharex=True)
 
 ax[0].plot(times, posHistory[:,0], label='x')
 ax[0].plot(times, posHistory[:,1], label='y')
@@ -156,6 +164,8 @@ ax[3].plot(times, angVelHistory[:,0], label='p')
 ax[3].plot(times, angVelHistory[:,1], label='q')
 ax[3].plot(times, angVelHistory[:,2], label='r')
 ax[4].plot(times, inputHistory)
+ax[5].plot(times, estPosHistory[:, 0], label = 'est x')
+ax[5].plot(times, posHistory[:,0], label = 'x')
 #ax[4].plot(times, motForcesHistory,':')
 
 ax[-1].set_xlabel('Time [s]')
