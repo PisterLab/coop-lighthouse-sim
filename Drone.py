@@ -4,7 +4,7 @@ import State
 import Vehicle
 
 class DroneType(enum.Enum):
-    lighthous_dronee = enum.auto()      # localizing itself and localizing anchor robots
+    lighthous_drone = enum.auto()      # localizing itself and localizing anchor robots
     robot_drone = enum.auto()     # only taking measurements
     anchor_drone = enum.auto()      # in place, acts as an anchor point
 
