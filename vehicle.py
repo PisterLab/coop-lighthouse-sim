@@ -26,7 +26,8 @@ class Vehicle:
         accStd = Vec3(0.01,0.01,0.01) 
         gyroStd = Vec3(0.01,0.01,0.01)
         magStd = Vec3(0.05,0.05,0.05)
-        self._imu = IMU(accStd,gyroStd,magStd)
+        test = True
+        self._imu = IMU(accStd,gyroStd,magStd,test)
 
 
 
@@ -82,7 +83,7 @@ class Vehicle:
         
         #generate imu measurements
         (self._accImu, self._omegaImu, self._magImu) = self._imu.get_imu_measurements(acc = acc, att = att, omega = omega) 
-        #print(self._accImu,acc)
+        print(self._omegaImu,omega)
         #euler integration
         self._pos += vel*dt
         self._vel += acc*dt

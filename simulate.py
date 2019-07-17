@@ -115,7 +115,7 @@ times            = np.zeros([numSteps,1])
 #estimator history
 estPosHistory = np.zeros([numSteps,3])
 estVelHistory = np.zeros([numSteps,3])
-
+estAttHistory = np.zeros([numSteps,3])
 
 while index < numSteps:
     #define commands:
@@ -145,7 +145,7 @@ while index < numSteps:
     motForcesHistory[index,:] = quadrocopter.get_motor_forces()
     estPosHistory[index, :] = quadrocopter._estimator._state_p.pos.to_list() 
     estVelHistory[index, :] = quadrocopter._estimator._state_p.vel.to_list() 
-
+    estAttHistory[index, :] =quadrocopter._estimator._state_p.att.to_euler_YPR()
     t += dt
     index += 1
 
@@ -186,5 +186,17 @@ ax[3].legend()
 
 print('Ang vel: ',angVelHistory[-1,:])
 print('Motor speeds: ',quadrocopter.get_motor_speeds())
+
+fig, ax = plt.subplots(6,1 ,sharex=True)
+ax[0].plot(times,estVelHistory)
+ax[1].plot(times,velHistory)
+ax[2].plot(times,attHistory)
+ax[3].plot(times,estAttHistory)
+ax[4].plot(times,estAttHistory-attHistory)
+ax[0].set_ylabel('estVel')
+ax[1].set_ylabel('Vel')
+ax[2].set_ylabel('Att')
+ax[3].set_ylabel('EstAtt')
+
 
 plt.show()

@@ -99,11 +99,11 @@ class Estimator6Dof:
 		print(Vec3(0,0,accImu[2])-gyroCross*self._state_m.vel - self._state_m.att.inverse() * Vec3(0,0,9.81))
 		print(self._state_m.vel)
 		print(gyroCross*self._state_m.vel)
-		self._state_p.vel = self._state_p.vel + dt*(Vec3(0,0,accImu[2])-gyroCross*self._state_m.vel - self._state_m.att.inverse() * Vec3(0,0,9.81))
+		self._state_p.vel +=  dt*(Vec3(0,0,accImu[2])-gyroCross*self._state_m.vel - self._state_m.att.inverse() * Vec3(0,0,9.81))
 
 		#attitude update
 		gyroRot = Rotation.from_rotation_vector(gyroImu*dt)
-		self._state_p.att = gyroRot*self._state_m.att
+		self._state_p.att = self._state_m.att*gyroRot
 		self._stateHistP.append(self._state_p)
 
 	def kalmanUpdate(self, dt):
