@@ -8,7 +8,8 @@ from imu import IMU
 from Estimator import Estimator6Dof
 
 class Vehicle:
-    def __init__(self, mass, inertiaMatrix, omegaSqrToDragTorque, disturbanceTorqueStdDev,estimator = "6dof"):
+    def __init__(self, mass, inertiaMatrix, omegaSqrToDragTorque, disturbanceTorqueStdDev,estimator = "6dof",drone_type=DroneType.measurement_robot):
+        self.drone_type = drone_type
         self._inertia = inertiaMatrix
         self._mass = mass
         
@@ -26,8 +27,8 @@ class Vehicle:
         accStd = Vec3(0.01,0.01,0.01) 
         gyroStd = Vec3(0.01,0.01,0.01)
         magStd = Vec3(0.05,0.05,0.05)
-        test = True
-        self._imu = IMU(accStd,gyroStd,magStd,test)
+        testImu = False
+        self._imu = IMU(accStd,gyroStd,magStd,testImu)
 
 
 
@@ -42,6 +43,12 @@ class Vehicle:
             self._estimator = Estimator6Dof(self._mass,self._inertia,self._omegaSqrToDragTorque, self._disturbanceTorqueStdDev, self._pos, self._vel, self._att)
         else:
             self._estimator = None
+
+        #state history
+        self.posHist = []
+        self.stateHist = []
+        self.attHist = []
+        
         return
         
 
@@ -83,13 +90,17 @@ class Vehicle:
         
         #generate imu measurements
         (self._accImu, self._omegaImu, self._magImu) = self._imu.get_imu_measurements(acc = acc, att = att, omega = omega) 
-        print(self._omegaImu,omega)
         #euler integration
         self._pos += vel*dt
         self._vel += acc*dt
         self._att  = att*Rotation.from_rotation_vector(omega*dt)
         self._omega += angAcc*dt
     
+        #record state
+        self.posHist.append(self._pos)
+        self.velHist.append(self._vel)
+        self.attHist.append(self._att)
+
     def kalman_predict(self, dt):
 
         if self._estimator == None:
@@ -141,3 +152,9 @@ class Vehicle:
             
             
         return pwr
+
+class DroneType(enum.Enum):
+    lighthouse_robot = enum.auto()      # localizing itself and localizing anchor robots
+    measurement_robot = enum.auto()     # only receiving measurements
+    anchor_robot = enum.auto()      # in place, acts as an anchor point
+

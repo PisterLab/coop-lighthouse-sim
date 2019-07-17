@@ -37,10 +37,12 @@ class Estimator6Dof:
 		self._Pp = None
 		self._Pm = None
 		self._stateHistP = []
+		self._posNoise = [0.01,0.01,0.01]
+		self._velNoise = [0.01,0.01,0.01]
+		self._dNoise = [0.01,0.01,0.01]
 		#state vars
 
-	def kalmanPredict(self, accImu, gyroImu, dt):
-
+	def linearizeDynamics(self,accImu, gyroImu, dt):
 		#create linearized A matrix
 
 		A = np.zeros((9,9))
@@ -59,6 +61,7 @@ class Estimator6Dof:
 		d2 = Vec3(0,0,1).to_cross_product_matrix()
 
 		#dynamics are R*(I + |_del_|) * vel
+		#print(self._state_m.vel.to_array())
 		grad_d0 = self._state_m.att.to_rotation_matrix()*d0*self._state_m.vel.to_array() * dt 
 		grad_d1 = self._state_m.att.to_rotation_matrix()*d1*self._state_m.vel.to_array() * dt 
 		grad_d2 = self._state_m.att.to_rotation_matrix()*d2*self._state_m.vel.to_array() * dt
@@ -85,8 +88,22 @@ class Estimator6Dof:
 		A = np.block([[A_pos, A_posvel, A_pos_att],
 					  [np.zeros((3,3)), A_velvel, A_velatt],
 					  [np.zeros((3,3)), np.zeros((3,3)), A_attatt]])
-		#TODO: covariance update
 
+		return A
+
+	def kalmanPredict(self, accImu, gyroImu, dt):
+
+		#linearize A matrix
+		A = self.linearizeDynamics(accImu, gyroImu,dt)
+
+		#process noise 
+		L = np.diag([dt, dt, dt, dt, dt, dt, dt, dt, dt])
+		Q = np.diag(np.concat(self._posNoise, self._velNoise, self._dNoise))
+
+		#covariance update
+		self._Pp = A * self._Pm * A.T + L * Q * L.T
+
+		#print(A)
 		#position prediction
 		dposBody = self._state_m.vel * dt + Vec3(0,0,accImu[2]*dt*dt / 2.0) 
 		#self._state_p.pos = self._state_m.att * dposBody - Vec3(0,0,9.81*dt*dt / 2.0)
@@ -94,17 +111,18 @@ class Estimator6Dof:
 		
 		#velocity prediction: zacc - gyro x vel - g_body 
 		gyroCross = gyroImu.to_cross_product_matrix()
-		print("velocity cross")
-		print(self._state_m.att.inverse() * Vec3(0,0,9.81))
-		print(Vec3(0,0,accImu[2])-gyroCross*self._state_m.vel - self._state_m.att.inverse() * Vec3(0,0,9.81))
-		print(self._state_m.vel)
-		print(gyroCross*self._state_m.vel)
-		self._state_p.vel +=  dt*(Vec3(0,0,accImu[2])-gyroCross*self._state_m.vel - self._state_m.att.inverse() * Vec3(0,0,9.81))
+		self._state_p.vel = self._state_m.vel +  dt*(Vec3(0,0,accImu[2])-gyroCross*self._state_m.vel - self._state_m.att.inverse() * Vec3(0,0,9.81))
 
 		#attitude update
 		gyroRot = Rotation.from_rotation_vector(gyroImu*dt)
 		self._state_p.att = self._state_m.att*gyroRot
 		self._stateHistP.append(self._state_p)
+
+		#compare linearized dynamics to actual dynamics 
+		#gyroRot = Rotation.from_rotation_vector(gyroImu*dt)
+		#self._state_p.devectorize(A*self._state_m.getVector(),self._state_m.att*gyroRot)
+		
+
 
 	def kalmanUpdate(self, dt):
 		self._state_m = copy.deepcopy(self._state_p)
@@ -118,16 +136,16 @@ class State:
 		self.att = att #reference attitude
 
 	def getVector(self):
-		return np.array([self.pos[0], self.pos[1], self.pos[2], self.vel[0], self.vel[1], self.vel[2], self.d[0], self.d[1], self.d[2]])
+		return np.array([[self.pos[0], self.pos[1], self.pos[2], self.vel[0], self.vel[1], self.vel[2], self.d[0], self.d[1], self.d[2]]]).T
 
-	def devectorize(state_vector,att=None):
+	def devectorize(self,state_vector,att):
 
-		self.pos = Vec3(state_vector[0], state_vector[1], state_vector[2])
-		self.vel = Vec3(state_vector[3], state_vector[4],state_vector[5])
-		self.d = Vec3(state_vector[6], state_vector[7], state_vector[8])
+		self.pos = Vec3(state_vector[0,0], state_vector[1,0], state_vector[2,0])
+		self.vel = Vec3(state_vector[3,0], state_vector[4,0],state_vector[5,0])
+		self.d = Vec3(state_vector[6,0], state_vector[7,0], state_vector[8,0])
 
-		if att != None:
-			self.att = att
+		
+		self.att = att
 
 
 
