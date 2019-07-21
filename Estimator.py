@@ -3,14 +3,43 @@ from __future__ import division, print_function
 import numpy as np
 from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py3dmath
 import copy
+import math
 
 class Estimator3Dof:
-	def __init__(self,mass, inertiaMatrix, omegaSqrToDragTorque, disturbanceTorqueStdDev):
+
+	def __init__(self,mass, inertiaMatrix, omegaSqrToDragTorque, disturbanceTorqueStdDev, pos = Vec3(0,0,0), vel = Vec3(0,0,0), att=Rotation.identity(),d = Vec3(0,0,0)):
 		
 		self._mass = mass
 		self._inertia = inertiaMatrix
 		self._omegaSqrToDragTorque = omegaSqrToDragTorque
 		self._disturbanceTorqueStdDev = disturbanceTorqueStdDev
+		self._state_m= np.array([pos[0], pos[1], att.to_euler_YPR()[0]])
+		self._state_p = np.array([pos[0], pos[1], att.to_euler_YPR()[0]])
+		self._Pp = None
+		self._stateHistP = []
+		self._posNoise = [0.05,0.05]
+		self._velNoise = [0.001,0.001]
+		self._thetNoise = 0.01
+		self._Pm = np.diag([self._posNoise[0], self._posNoise[1], self._thetNoise, self._velNoise[0], self._velNoise[1]])
+		self._Pp = np.zeros((5,5))
+
+	def linearizeDynamics(self, accImu, gyroImu, dt):
+		A = [[1, 0, 0, dt, 0],
+             [0, 1, 0, 0, dt],
+             [0, 0, 1, 0, 0],
+             [0, 0, (-math.sin(self._state_m[2]) * accImu[0] - math.cos(self._state_m[2]) *
+                     accImu[1]) * dt, 1, 0],
+             [0, 0, (math.cos(self._state_m[2]) * accImu[0] - math.sin(self._state_m[2]) *
+                     accImu[1]) * dt, 0, 1]]
+
+        return A
+
+	def kalmanPredict(self, accImu, gyroImu, dt):
+
+
+	def kalmanUpdate(self, dt):
+		self._state_m = copy.deepcopy(self._state_p)	
+
 
 
 class Estimator6Dof:
