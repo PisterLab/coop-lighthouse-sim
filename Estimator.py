@@ -35,7 +35,22 @@ class Estimator3Dof:
         return A
 
 	def kalmanPredict(self, accImu, gyroImu, dt):
+		#linearize A matrix
+		A = self.linearizeDynamics(accImu, gyroImu,dt)
 
+		#process noise 
+		L = [[dt, 0, 0, 0, 0],
+             [0, dt, 0, 0, 0],
+             [0, 0, dt, 0, 0],
+             [0, 0, 0, -dt * math.sin(self._state_m[2]), -dt * math.cos(self._state_m[2])],
+             [0, 0, 0, dt * math.cos(self._state_m[2]), -dt * math.sin(self._state_m[2])]]
+		Q = np.diag(np.concat(self._posNoise, [self._thethNoise], self._velNoise))
+
+		#covariance update
+		self._Pp = A * self._Pm * A.T + L * Q * L.T
+
+		# TODO: continue implementing kalmanPredict in 3dof
+		
 
 	def kalmanUpdate(self, dt):
 		self._state_m = copy.deepcopy(self._state_p)	
