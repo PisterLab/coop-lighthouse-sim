@@ -49,7 +49,7 @@ class Estimator3Dof:
 		#covariance update
 		self._Pp = A * self._Pm * A.T + L * Q * L.T
 
-		# TODO: continue implementing kalmanPredict in 3dof
+		# TODO: continue implementing kalmanPredict in 3dof after measurement handler has been established in simulation
 		
 
 	def kalmanUpdate(self, dt):

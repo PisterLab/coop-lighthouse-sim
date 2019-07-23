@@ -8,7 +8,7 @@ from imu import IMU
 from Estimator import Estimator6Dof
 
 class Vehicle:
-    def __init__(self, mass, inertiaMatrix, omegaSqrToDragTorque, disturbanceTorqueStdDev,estimator = "6dof",drone_type=DroneType.measurement_robot):
+    def __init__(self, mass, inertiaMatrix, omegaSqrToDragTorque, disturbanceTorqueStdDev,estimator = "6dof",drone_type=DroneType.robot_drone):
         self.drone_type = drone_type
         self._inertia = inertiaMatrix
         self._mass = mass
