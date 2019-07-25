@@ -46,7 +46,7 @@ class Vehicle:
 
         #state history
         self.posHist = []
-        self.stateHist = []
+        self.velHist = []
         self.attHist = []
 
         return
