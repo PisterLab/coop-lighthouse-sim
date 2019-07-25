@@ -153,6 +153,60 @@ class Vehicle:
 
         return pwr
 
+class 2DVehicle:
+    def __init__(self, drone_type=DroneType.robot_drone):
+        self.drone_type = drone_type
+
+        # TODO: Fix this and the names
+        self._pos = [0, 0]
+        self._vel = [0, 0]
+        self._accel = [0, 0]
+        self._att = 0
+
+        self.posHist = []
+        self.velHist = []
+        self.attHist = []
+
+        self._estimator =  ""
+
+        # Should run be used as an overarching function with three changing functions or the previous implementation?
+
+    def run(self, dt):
+
+        self.posHist.append(self._pos)
+        self.velHist.append(self._vel)
+        self.attHist.append(self._att)
+
+        if self.drone_type == DroneType.lighthouse_drone:
+            self.run_lighthouse(dt)
+        elif self.drone_type == DroneType.robot_drone:
+            self.run_robot(dt)
+        elif self.drone_type == DroneType.anchor_drone: # I know that you can use else for this but I'm doing this for code clarity
+            self.run_anchor(dt)
+
+
+
+    def run_lighthouse(self, dt):
+        self.step_dynamics(dt)
+
+    def run_robot(self, dt):
+        self.step_dynamics(dt)
+
+    def run_anchor(self, dt):
+        print("No movement.")
+
+    # Use States?
+    # where do i get ax, ay, and omega
+    # Should I move this to a different method?
+    # Should I save the states in this method?
+    def step_dynamics(self, dt):
+        x = self._pos[0] + self._vel[0] * dt
+        y = self._pos[1] + self._vel[1] * dt
+        theta = (state_truth_prev.theta + dt * omega + 3.14159) % (2 * 3.14159) - 3.14159
+        vx = state_truth_prev.vx + (math.cos(state_truth_prev.theta) * ax - math.sin(state_truth_prev.theta) * ay) * dt
+        vy = state_truth_prev.vy + (math.sin(state_truth_prev.theta) * ax + math.cos(state_truth_prev.theta) * ay) * dt
+
+
 class DroneType(enum.Enum):
     lighthouse_drone = enum.auto()      # localizing itself and localizing anchor robots
     robot_drone = enum.auto()     # only receiving measurements
