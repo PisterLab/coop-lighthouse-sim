@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py3dmath
-from vehicle import Vehicle
+from vehicle import Vehicle, 2DVehicle, DroneType
 
 from positioncontroller import PositionController
 from attitudecontroller import QuadcopterAttitudeControllerNested
@@ -15,7 +15,6 @@ from measurement_handler import MeasurementHandler
 
 np.random.seed(0)
 
-useNestedAttControl = False
 
 #==============================================================================
 # Define the simulation
@@ -27,7 +26,12 @@ endTime = 20
 # Define the vehicles
 #==============================================================================
 
-vehicle_list = []
+
+quadcopter1 = 2DVehicle(DroneType.lighthouse_drone)
+quadcopter2 = 2DVehicle(DroneType.robot_drone)
+quadcopter3 = 2DVehicle(DroneType.anchor_drone)
+
+vehicle_list = [quadcopter1, quadcopter2, quadcopter3]
 
 
 #==============================================================================
@@ -41,21 +45,9 @@ measurement_handler = MeasurementHandler(vehicle_list)
 
 numSteps = np.int((endTime)/dt)
 index = 0
+times = np.zeros([numSteps,1])
 
 t = 0
-
-posHistory       = np.zeros([numSteps,2])
-velHistory       = np.zeros([numSteps,2])
-angVelHistory    = np.zeros([numSteps,1])
-attHistory       = np.zeros([numSteps,1])
-motForcesHistory = np.zeros([numSteps,quadrocopter.get_num_motors()])
-inputHistory     = np.zeros([numSteps,quadrocopter.get_num_motors()])
-times            = np.zeros([numSteps,1])
-
-#estimator history
-estPosHistory = np.zeros([numSteps,3])
-estVelHistory = np.zeros([numSteps,3])
-estAttHistory = np.zeros([numSteps,3])
 
 while index < numSteps:
     #define commands:
@@ -63,11 +55,16 @@ while index < numSteps:
     #mass-normalised thrust:
     
     #run the simulator
-    quadrocopter.run(dt, motForceCmds)
+    for drone in vehicle_list:
+        drone.run(dt)
 
     #######################
     # get measurement here
     #######################
+
+    for drone in vehicle_list:
+        measurement = measurement_handler.get_measurement(drone)
+        
 
     #run the estimator
     quadrocopter.kalman_predict(dt)
@@ -75,15 +72,7 @@ while index < numSteps:
     #print(quadrocopter._estimator._state_p.pos)
     #for plotting
     times[index] = t
-    inputHistory[index,:]     = motForceCmds
-    posHistory[index,:]       = quadrocopter._pos.to_list()
-    velHistory[index,:]       = quadrocopter._vel.to_list()
-    attHistory[index,:]       = quadrocopter._att.to_euler_YPR()
-    angVelHistory[index,:]    = quadrocopter._omega.to_list()
-    motForcesHistory[index,:] = quadrocopter.get_motor_forces()
-    estPosHistory[index, :] = quadrocopter._estimator._state_p.pos.to_list() 
-    estVelHistory[index, :] = quadrocopter._estimator._state_p.vel.to_list() 
-    estAttHistory[index, :] =quadrocopter._estimator._state_p.att.to_euler_YPR()
+    
     t += dt
     index += 1
 
