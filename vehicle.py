@@ -4,7 +4,7 @@ from __future__ import division, print_function
 import numpy as np
 from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py3dmath
 from motor import Motor
-from imu import IMU
+from imu import IMU, 2DIMU
 from Estimator import Estimator6Dof, Estimator3Dof
 
 class Vehicle:
