@@ -4,8 +4,8 @@ from __future__ import division, print_function
 import numpy as np
 from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py3dmath
 from motor import Motor
-from imu import IMU, 2DIMU
-from Estimator import Estimator6Dof
+from imu import IMU
+from Estimator import Estimator6Dof, Estimator3Dof
 
 class Vehicle:
     def __init__(self, mass, inertiaMatrix, omegaSqrToDragTorque, disturbanceTorqueStdDev,estimator = "6dof",drone_type=DroneType.robot_drone):
@@ -101,14 +101,15 @@ class Vehicle:
         self.velHist.append(self._vel)
         self.attHist.append(self._att)
 
-    def kalman_predict(self, dt):
+    def kalman_predict(self, dt, measurement):
 
         if self._estimator == None:
             return
         else:
             #print("kalman predicting")
-            self._estimator.kalmanPredict(self._accImu,self._omegaImu,dt)
+            self._estimator.kalmanPredict(self._accImu,self._omegaImu,dt, measurmement)
 
+    # TODO: still doesn't update vehicle's variables, only estimator's
     def kalman_update(self, dt):
 
         if self._estimator == None:
@@ -168,7 +169,7 @@ class 2DVehicle:
         self.velHist = []
         self.attHist = []
 
-        self._estimator =  ""
+        self._estimator =  Estimator3Dof(self.Vec3(self._pos[0], self._pos[1], 0), Vec3(self._vel[0], self._vel[1], 0), Rotation.from_euler_YPR([self._att, 0, 0]), drone_type)
 
         self._acc = [0,0] #body axis acceleration including gravity acc
         self._omega = 0 #body axis angular vel
