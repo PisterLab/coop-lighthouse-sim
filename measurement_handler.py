@@ -34,13 +34,18 @@ class MeasurementHandler:
 
 	def get_measurement(self, drone):
 		if drone.drone_type == lighthouse_drone or drone.drone_type == robot_drone:
-			measurement_avail, phi_final = self.compute_anchor_meas(drone)
+			measurement_avail, phi_final, measurer_pos_p = self.compute_anchor_meas(drone)
+
+
 
 		else if drone.drone_type == anchor_drone:
-			measurement_avail, phi_final = self.compute_lighthouse_meas(drone)
+			measurement_avail, phi_final, measurer_pos_p = self.compute_lighthouse_meas(drone)
 
 		if measurement_avail:
-			return phi_final
+			#add noise
+			noise = np.random.randn() * math.sqrt(drone._estimator._Pp)  # lighthouse noise
+			z = ((phi_final + noise + PI) % (2 * PI)) - PI
+			return (z, measurer_pos_p)
 		else:
 			return None
 		
@@ -78,13 +83,13 @@ class MeasurementHandler:
 
 		# match_idx = abs(phis_k - repmat(phi_robot_k,num_anchors,1)) < MATCH_THRESH
 		phi_matches = []
-		match_locs = []
+		lighthouse_pos_p = []
 
 		# Add the location of the anchor it matched with
 		for i in range(len(match_idx)):
 			if match_idx[i][0]:
 			    phi_matches.append(phis_k[i][0])
-			    match_locs.append([lighthouse_drones[i].xp_obj.x, lighthouse_drones[i].xp_obj.y])
+			    lighthouse_pos_p.append([lighthouse_drones[i].xp_obj.x, lighthouse_drones[i].xp_obj.y])
 
 
 		# If the robot didn't cross an anchor
@@ -96,10 +101,9 @@ class MeasurementHandler:
 		else:
 			measurement_avail = True
 
-		# TODO: figure out noise integration
 		phi_final = phi_matches[0]
 
-		return measurement_avail, phi_final
+		return measurement_avail, phi_final, lighthouse_pos_p
 
 	def compute_anchor_meas(self, lighthouse_drone):
 	    num_anchors = len(self._anchor_drones)
@@ -123,7 +127,6 @@ class MeasurementHandler:
 	    phi_robot_prev = (lighthouse_drone.attHist[-2] + PI) % (2 * PI) - PI
 	    phi_robot_vec_prev = np.tile(phi_robot_prev, (num_anchors, 1))  # stacked vector of robot orientation
 
-	    # TODO: Switch to transposing function
 	    if len(np.shape(phis_k)) == 1:
 	        phis_k = np.array([phis_k]).T
 	        phis_prev = np.array([phis_prev]).T
@@ -152,4 +155,4 @@ class MeasurementHandler:
 	        measurement_avail = True
 	        phi_final = phi_matches[0]
 
-	    return measurement_avail, phi_final
+	    return measurement_avail, phi_final, match_locs

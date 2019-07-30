@@ -56,14 +56,51 @@ class Estimator3Dof:
 		self._Pp = A * self._Pm * A.T + L * Q * L.T
 
 		# TODO: continue implementing kalmanPredict in 3dof after measurement handler has been established in simulation
-		if measurement == None:
+		if measurement[0] == None:
 			# calc noise corrupted measurement
             self._stateHistP.append(self._stateHistP)
             #self._state_p does not change
             #self._Pm does not change
 
         else:
-        	# transfer kalman update code here
+        	# lighthouse measurement is available
+        	# NEED REF LOCATION
+
+
+            x_a = measurement[1][0]
+            y_a = measurement[1][1]
+
+            # calculate noise corrupted measurement
+            c_noise = np.random.randn() * compass_n  # compass noise
+            l_noise = np.random.randn() * math.sqrt(self.Pp[k - 1][2][2])  # lighthouse noise
+            sig_l = math.sqrt(self.Pp[k - 1][2][2])
+            # l_noise = randn * compass_n
+            # l_noise = xp_obj.theta - phi     # this is the actual error of lighthouse i believe
+
+            z = np.array([[((phi + l_noise + PI) % (2 * PI)) - PI],
+                               [((self.state_truth_arr[k].theta + c_noise + PI) % (2 * PI)) - PI]])
+
+            # calculate H
+            # TODO: Switch to transposing function
+            r = np.linalg.norm(np.array([xp_vec[0:2]]).T - [[x_a], [y_a]])
+            angle = np.arctan2(self.xp_obj.y - y_a, self.xp_obj.x - x_a)
+            H_mat = np.array([[-np.sin(angle) / r, np.cos(angle) / r, 0, 0, 0],
+                               [0, 0, 1, 0, 0]])
+
+            # calculate M. I could potentially add two more entries: var(x_a), var(y_a)
+            M = np.array([[1, 0], [0, 1]])
+
+            # calculate zhat
+            zhat = np.array([[angle], [self.xp_obj.theta]])
+
+            # calculate R(noise covariance matrix)
+            compass_w = 0.001 * 0.001
+            R_mat = [[sig_l * sig_l, 0], [0, compass_w]]
+
+            # Kalman gain
+            # TODO: Switch to transposing function
+            kalman_gain = np.dot(np.dot(self.Pp[k], H_mat.T), np.linalg.inv(
+                np.dot(np.dot(H_mat, self.Pp[k]), H_mat.T) + np.dot(np.dot(M, R_mat), M.T)))
 
 
 

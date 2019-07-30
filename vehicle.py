@@ -107,9 +107,8 @@ class Vehicle:
             return
         else:
             #print("kalman predicting")
-            self._estimator.kalmanPredict(self._accImu,self._omegaImu,dt, measurmement)
+            self._estimator.kalmanPredict(self._accImu,self._omegaImu,dt, measurement)
 
-    # TODO: still doesn't update vehicle's variables, only estimator's
     def kalman_update(self, dt):
 
         if self._estimator == None:
