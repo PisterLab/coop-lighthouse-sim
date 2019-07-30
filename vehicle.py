@@ -4,7 +4,7 @@ from __future__ import division, print_function
 import numpy as np
 from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py3dmath
 from motor import Motor
-from imu import IMU
+from imu import IMU, 2DIMU
 from Estimator import Estimator6Dof
 
 class Vehicle:
@@ -162,12 +162,29 @@ class 2DVehicle:
         self._vel = [0, 0]
         self._accel = [0, 0]
         self._att = 0
+        self._omega = 0
 
         self.posHist = []
         self.velHist = []
         self.attHist = []
 
         self._estimator =  ""
+
+        self._acc = [0,0] #body axis acceleration including gravity acc
+        self._omega = 0 #body axis angular vel
+
+        #Keep IMUs in 3D then just grab 2D measurements?
+        #imu measurements
+        self._accImu = [0,0]
+        self._omegaImu = 0
+        self._magImu = 0
+
+        #imu object
+        accStd = [0.01,0.01]
+        gyroStd = 0.01
+        magStd = 0.05
+        testImu = False
+        self._imu = 2DIMU(accStd,gyroStd,magStd,testImu)
 
         # Should run be used as an overarching function with three changing functions or the previous implementation?
 
@@ -176,6 +193,13 @@ class 2DVehicle:
         self.posHist.append(self._pos)
         self.velHist.append(self._vel)
         self.attHist.append(self._att)
+
+        """
+        acc = self._accImu
+        att = self._att
+        omega = self._omegaImu
+        self._accImu, self._omegaImu, self._magImu = self._imu.get_imu_measurements(acc = acc, att = att, omega = omega)
+        """
 
         if self.drone_type == DroneType.lighthouse_drone:
             self.run_lighthouse(dt)
@@ -187,10 +211,10 @@ class 2DVehicle:
 
 
     def run_lighthouse(self, dt):
-        self.step_dynamics(dt)
+        self._pos[0], self._pos[1], self._att, self._vel[0], self._vel[1] = self.step_dynamics(dt)
 
     def run_robot(self, dt):
-        self.step_dynamics(dt)
+        self._pos[0], self._pos[1], self._att, self._vel[0], self._vel[1] = self.step_dynamics(dt)
 
     def run_anchor(self, dt):
         print("No movement.")
@@ -202,9 +226,10 @@ class 2DVehicle:
     def step_dynamics(self, dt):
         x = self._pos[0] + self._vel[0] * dt
         y = self._pos[1] + self._vel[1] * dt
-        theta = (state_truth_prev.theta + dt * omega + 3.14159) % (2 * 3.14159) - 3.14159
-        vx = state_truth_prev.vx + (math.cos(state_truth_prev.theta) * ax - math.sin(state_truth_prev.theta) * ay) * dt
-        vy = state_truth_prev.vy + (math.sin(state_truth_prev.theta) * ax + math.cos(state_truth_prev.theta) * ay) * dt
+        theta = (self._att + dt * self._omega + 3.14159) % (2 * 3.14159) - 3.14159
+        vx = self._vel[0] + (math.cos(self._att) * self._acc[0] - math.sin(self._att) * self._acc[1]) * dt
+        vy = self._vel[1] + (math.sin(self._att) * self._acc[0] + math.cos(self._att) * self._acc[1]) * dt
+        return (x, y, theta, vx, vy)
 
 
 class DroneType(enum.Enum):
