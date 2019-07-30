@@ -64,10 +64,9 @@ while index < numSteps:
 
     for drone in vehicle_list:
         measurement = measurement_handler.get_measurement(drone)
-        
 
     #run the estimator
-    quadrocopter.kalman_predict(dt)
+    quadrocopter.kalman_predict(dt, measurement)
     quadrocopter.kalman_update(dt)
     #print(quadrocopter._estimator._state_p.pos)
     #for plotting

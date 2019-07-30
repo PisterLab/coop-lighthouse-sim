@@ -7,12 +7,8 @@ import math
 
 class Estimator3Dof:
 
-	def __init__(self,mass, inertiaMatrix, omegaSqrToDragTorque, disturbanceTorqueStdDev, pos = Vec3(0,0,0), vel = Vec3(0,0,0), att=Rotation.identity(),d = Vec3(0,0,0)):
+	def __init__(self, pos = Vec3(0,0,0), vel = Vec3(0,0,0), att=Rotation.identity(),d = Vec3(0,0,0), drone_type):
 		
-		self._mass = mass
-		self._inertia = inertiaMatrix
-		self._omegaSqrToDragTorque = omegaSqrToDragTorque
-		self._disturbanceTorqueStdDev = disturbanceTorqueStdDev
 		self._state_m= np.array([pos[0], pos[1], att.to_euler_YPR()[0]])
 		self._state_p = np.array([pos[0], pos[1], att.to_euler_YPR()[0]])
 		self._Pp = None
@@ -22,6 +18,7 @@ class Estimator3Dof:
 		self._thetNoise = 0.01
 		self._Pm = np.diag([self._posNoise[0], self._posNoise[1], self._thetNoise, self._velNoise[0], self._velNoise[1]])
 		self._Pp = np.zeros((5,5))
+		self._drone_type = drone_type
 
 	def linearizeDynamics(self, accImu, gyroImu, dt):
 		A = [[1, 0, 0, dt, 0],
@@ -34,7 +31,16 @@ class Estimator3Dof:
 
         return A
 
-	def kalmanPredict(self, accImu, gyroImu, dt):
+	def kalmanPredict(self, accImu, gyroImu, dt, measurement):
+		if self._drone_type == DroneType.lighthouse_drone:
+			self.kalmanPredictLighthouse(accImu, gyroImu, dt, measurement)
+		else if self._drone_type == DroneType.anchor_drone:
+			self.kalmandPredictAnchor(accImu, gyroImu, dt, measurement)
+		else:
+			self.kalmanPredictRobot(accImu, gyroImu, dt, measurement)
+
+
+	def kalmanPredictLighthouse(self, accImu, gyroImu, dt, measurement):
 		#linearize A matrix
 		A = self.linearizeDynamics(accImu, gyroImu,dt)
 
@@ -50,7 +56,23 @@ class Estimator3Dof:
 		self._Pp = A * self._Pm * A.T + L * Q * L.T
 
 		# TODO: continue implementing kalmanPredict in 3dof after measurement handler has been established in simulation
-		
+		if measurement == None:
+			# calc noise corrupted measurement
+            self._stateHistP.append(self._stateHistP)
+            #self._state_p does not change
+            #self._Pm does not change
+
+        else:
+        	# transfer kalman update code here
+
+
+
+	def kalmanPredictAnchor(self, accImu, gyroImu, dt, measurement):
+		# TODO: fill in
+
+
+	def kalmanPredictRobot(self, accImu, gyroImu, dt, measurement):
+		# TODO: fill in
 
 	def kalmanUpdate(self, dt):
 		self._state_m = copy.deepcopy(self._state_p)	
