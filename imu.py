@@ -43,7 +43,7 @@ class IMU:
 		return acc, omega, mag
 
 
-class 2DIMU:
+class IMU2D:
 	def __init__(self, accStd, gyroStd, magStd, test):
 
 		self._accStd = accStd

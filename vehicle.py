@@ -154,15 +154,16 @@ class Vehicle:
 
         return pwr
 
-class 2DVehicle:
+class Vehicle2D:
     def __init__(self, drone_type=DroneType.robot_drone):
         self.drone_type = drone_type
 
         # TODO: Fix this and the names
-        self._pos = [0, 0]
+        self._pos = [5, 5]
         self._vel = [0, 0]
-        self._accel = [0, 0]
         self._att = 0
+
+        self._accel = [0, 0]
         self._omega = 0
 
         self.posHist = []
@@ -171,21 +172,21 @@ class 2DVehicle:
 
         self._estimator =  Estimator3Dof(self.Vec3(self._pos[0], self._pos[1], 0), Vec3(self._vel[0], self._vel[1], 0), Rotation.from_euler_YPR([self._att, 0, 0]), drone_type)
 
-        self._acc = [0,0] #body axis acceleration including gravity acc
-        self._omega = 0 #body axis angular vel
+        self._acc = [.1, 0] #body axis acceleration including gravity acc
+        self._omega = 2 #body axis angular vel
 
         #Keep IMUs in 3D then just grab 2D measurements?
         #imu measurements
-        self._accImu = [0,0]
-        self._omegaImu = 0
-        self._magImu = 0
+        self._accImu = self._acc
+        self._omegaImu = self._omega
+        self._magImu = self._att
 
         #imu object
         accStd = [0.01,0.01]
         gyroStd = 0.01
         magStd = 0.05
         testImu = False
-        self._imu = 2DIMU(accStd,gyroStd,magStd,testImu)
+        self._imu = IMU2D(accStd,gyroStd,magStd,testImu)
 
         # Should run be used as an overarching function with three changing functions or the previous implementation?
 
@@ -195,12 +196,10 @@ class 2DVehicle:
         self.velHist.append(self._vel)
         self.attHist.append(self._att)
 
-        """
         acc = self._accImu
-        att = self._att
         omega = self._omegaImu
+        att = self._magImu
         self._accImu, self._omegaImu, self._magImu = self._imu.get_imu_measurements(acc = acc, att = att, omega = omega)
-        """
 
         if self.drone_type == DroneType.lighthouse_drone:
             self.run_lighthouse(dt)
@@ -209,13 +208,11 @@ class 2DVehicle:
         elif self.drone_type == DroneType.anchor_drone: # I know that you can use else for this but I'm doing this for code clarity
             self.run_anchor(dt)
 
-
-
     def run_lighthouse(self, dt):
-        self._pos[0], self._pos[1], self._att, self._vel[0], self._vel[1] = self.step_dynamics(dt)
+        self._pos, self._vel, self._att = self.step_dynamics(self._pos, self._vel, self._att, self._acc, self._omega, dt)
 
     def run_robot(self, dt):
-        self._pos[0], self._pos[1], self._att, self._vel[0], self._vel[1] = self.step_dynamics(dt)
+        self._pos, self._vel, self._att = self.step_dynamics(self._pos, self._vel, self._att, self._acc, self._omega, dt)
 
     def run_anchor(self, dt):
         print("No movement.")
@@ -224,13 +221,13 @@ class 2DVehicle:
     # where do i get ax, ay, and omega
     # Should I move this to a different method?
     # Should I save the states in this method?
-    def step_dynamics(self, dt):
-        x = self._pos[0] + self._vel[0] * dt
-        y = self._pos[1] + self._vel[1] * dt
-        theta = (self._att + dt * self._omega + 3.14159) % (2 * 3.14159) - 3.14159
-        vx = self._vel[0] + (math.cos(self._att) * self._acc[0] - math.sin(self._att) * self._acc[1]) * dt
-        vy = self._vel[1] + (math.sin(self._att) * self._acc[0] + math.cos(self._att) * self._acc[1]) * dt
-        return (x, y, theta, vx, vy)
+    def step_dynamics(self, pos, vel, att, acc, omega, dt):
+        x = pos[0] + vel[0] * dt
+        y = pos[1] + vel[1] * dt
+        theta = att + dt * omega + 3.14159) % (2 * 3.14159) - 3.14159
+        vx = vel[0] + (math.cos(att) * acc[0] - math.sin(att) * acc[1]) * dt
+        vy = vel[1] + (math.sin(att) * acc[0] + math.cos(att) * acc[1]) * dt
+        return [x, y], [vx, vy], theta
 
 
 class DroneType(enum.Enum):
