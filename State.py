@@ -2,12 +2,10 @@
 from py3dmath import Vec3, Rotation
 
 class State:
-    def __init__(self, x=0, y=0, theta=0, vx=0, vy=0):
-        self.x = x
-        self.y = y
-        self.theta = theta
-        self.vx = vx
-        self.vy = vy
+    def __init__(self, pos, vel, att):
+        self._pos = pos
+        self._vel = vel
+        self._att = att
 
     def vectorize(self):
-        return [x, y, theta, vx, vy]
+        return [self._pos[0], self._pos[1], self._vel[0], self._vel[1], self._att]
