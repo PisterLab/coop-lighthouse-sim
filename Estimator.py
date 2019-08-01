@@ -20,7 +20,7 @@ class Estimator3Dof:
 		self._state_m= np.array([pos[0] + np.random.rand() * self._posNoise[0], pos[1] + np.random_rand() * self._posNoise[2], att.to_euler_YPR()[0] + np.randome.rand() * self._thetNoise])
 		self._state_p = self._state_m
 
-	def linearizeDynamics(self, accImu, gyroImu, dt):
+	def linearizeDynamics(self, accImu, gyroImu, magImu, dt):
 		A = [[1, 0, 0, dt, 0],
              [0, 1, 0, 0, dt],
              [0, 0, 1, 0, 0],
@@ -33,11 +33,11 @@ class Estimator3Dof:
 
 	def kalmanPredict(self, accImu, omegaImu, magImu, dt, measurement):
 		if self._drone_type == DroneType.lighthouse_drone:
-			self.kalmanPredictLighthouse(accImu, gyroImu, dt, measurement)
+			self.kalmanPredictLighthouse(accImu, omegaImu, dt, measurement)
 		elif self._drone_type == DroneType.anchor_drone:
-			self.kalmandPredictAnchor(accImu, gyroImu, dt, measurement)
+			self.kalmandPredictAnchor(accImu, omegaImu, dt, measurement)
 		else:
-			self.kalmanPredictRobot(accImu, gyroImu, dt, measurement)
+			self.kalmanPredictRobot(accImu, omegaImu, dt, measurement)
 
 
 	def kalmanPredictLighthouse(self, accImu, omegaImu, magImu, dt, measurement):
@@ -75,7 +75,7 @@ class Estimator3Dof:
             # l_noise = randn * compass_n
             # l_noise = xp_obj.theta - phi     # this is the actual error of lighthouse i believe
 
-            z = [measurement[0], 
+            z = [measurement[0], magImu]
 
             # calculate H
             # TODO: Switch to transposing function
@@ -106,8 +106,8 @@ class Estimator3Dof:
         diff = []
 
         if measurement[0]:
-            diff.append(z - zhat[0])
-            diff.append(z - zhat[1])
+            diff.append(z[0] - zhat[0])
+            diff.append(z[1] - zhat[1])
 
             diff[0] = ((diff[0] + PI) % (2 * PI)) - PI
             diff[1] = ((diff[1] + PI) % (2 * PI)) - PI
@@ -116,7 +116,7 @@ class Estimator3Dof:
             diff[0] = ((diff[0] + PI) % (2 * PI)) - PI
 
         # TODO: Switch to transposing function
-        xp_vec_trans = np.array([xp_vec[:]]).T
+        xp_vec_trans = np.array([self._state_p][:]).T
 
         k_diff_trans = np.dot(kalman_gain, diff)
 
@@ -125,11 +125,10 @@ class Estimator3Dof:
             k_diff_trans = np.array([k_diff_trans]).T
         add_xm_vec = np.array(xp_vec_trans + k_diff_trans)
 
-        self.xm_vec = np.hstack((self.xm_vec, add_xm_vec))
-        self.xm_obj.append(StateTruth.devectorize(self.xm_vec[:, k]))
+        self._state_m = add_xm_vec
 
         # Pm
-        self.Pm.append(np.dot(np.eye(5) - np.dot(kalman_gain, H_mat), self.Pp[k]))
+        self._Pm = np.dot(np.eye(5) - np.dot(kalman_gain, H_mat), self._Pp)
 
         # calculates anchor measurements based on the true theta state of the
         # robot. X_a is the set of anchor point locations.
