@@ -10,9 +10,9 @@ class MeasurementHandler:
 	def __init__(self, vehicles):
 		self._vehicles = vehicles
 
-		self._robot_drones = [drone for drone in self._vehicles if drone.drone_type == robot_drone]
-		self._lighthouse_drones = [drone for drone in self._vehicles if drone.drone_type == lighthouse_drone]
-		self._anchor_drones = [drone for drone in self._vehicles if drone.drone_type == anchor_drone]
+		self._robot_drones = [drone for drone in self._vehicles if drone.drone_type == DroneType.robot_drone]
+		self._lighthouse_drones = [drone for drone in self._vehicles if drone.drone_type == DroneType.lighthouse_drone]
+		self._anchor_drones = [drone for drone in self._vehicles if drone.drone_type == DroneType.anchor_drone]
 
 
 		#global list of current anchor, robot, and robot lighthouse locations
