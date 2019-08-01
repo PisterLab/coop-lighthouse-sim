@@ -4,7 +4,7 @@ import numpy as np
 from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py3dmath
 import copy
 import math
-from utils import DroneType
+from utils import DroneType, StepDynamics
 
 class Estimator3Dof:
 
@@ -17,7 +17,7 @@ class Estimator3Dof:
 		self._Pm = np.diag([self._posNoise[0], self._posNoise[1], self._thetNoise, self._velNoise[0], self._velNoise[1]])
 		self._Pp = np.zeros((5,5))
 		self._drone_type = drone_type
-		self._state_m= np.array([pos[0] + np.random.rand() * self._posNoise[0], pos[1] + np.random_rand() * self._posNoise[2], att.to_euler_YPR()[0] + np.randome.rand() * self._thetNoise])
+		self._state_m= np.array([pos[0] + np.random.rand() * self._posNoise[0], pos[1] + np.random_rand() * self._posNoise[2], att.to_euler_YPR()[0] + np.random.rand() * self._thetNoise, vel[0] + np.random.rand() * self._velNoise[0], vel[1] + np.random.rand() + self._velNoise[1]])
 		self._state_p = self._state_m
 
 	def linearizeDynamics(self, accImu, omegaImu, magImu, dt):
@@ -32,12 +32,10 @@ class Estimator3Dof:
 		return A
 
 	def kalmanPredict(self, accImu, omegaImu, magImu, dt, measurement):
-		if self._drone_type == DroneType.lighthouse_drone:
+		if self._drone_type == DroneType.lighthouse_drone or self._drone_type == DroneType.robot_drone:
 			self.kalmanPredictLighthouse(accImu, omegaImu, dt, measurement)
 		elif self._drone_type == DroneType.anchor_drone:
 			self.kalmandPredictAnchor(accImu, omegaImu, dt, measurement)
-		else:
-			self.kalmanPredictRobot(accImu, omegaImu, dt, measurement)
 
 
 	def kalmanPredictLighthouse(self, accImu, omegaImu, magImu, dt, measurement):
@@ -129,10 +127,6 @@ class Estimator3Dof:
         # calculates anchor measurements based on the true theta state of the
         # robot. X_a is the set of anchor point locations.
 
-
-
-
-
 	def kalmanPredictAnchor(self, accImu, omegaImu, magImu, dt, measurement):
 
 		# TODO: fill in
@@ -141,13 +135,11 @@ class Estimator3Dof:
 
 		return
 
-	def kalmanPredictRobot(self, accImu, omegaImu, magImu, dt, measurement):
-		# TODO: fill in
-		if measurement != None:
-		return
 
-	def kalmanUpdate(self, dt):
-		self._state_m = copy.deepcopy(self._state_p)
+	def kalmanUpdate(self, accImu, omegaImu, dt):
+		pos, vel, theta = Vehicle.step_dynamics(self._state_m[0:2], self._state_m[3:], self._state_m[2], accImu, omegaImu, dt)
+		self._state_p = pos + [theta] + vel
+		self._Pp = copy.deepcopy(self._Pm)
 
 
 
@@ -271,7 +263,7 @@ class Estimator6Dof:
 
 	def kalmanUpdate(self, dt):
 		#no measurement update created yet
-		self._state_m = copy.deepcopy(self._state_p)
+		self._state_p = copy.deepcopy(self._state_m)
 		self._Pm = self._Pp
 
 
