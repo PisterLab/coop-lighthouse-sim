@@ -6,12 +6,7 @@ from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py
 from motor import Motor
 from imu import IMU, IMU2D
 from Estimator import Estimator6Dof #, Estimator3Dof
-import enum
-
-class DroneType(enum.Enum):
-    lighthouse_drone = enum.auto()      # localizing itself and localizing anchor robots
-    robot_drone = enum.auto()     # only receiving measurements
-    anchor_drone = enum.auto()      # in place, acts as an anchor point
+import utils.DroneType as DroneType
 
 class Vehicle:
     def __init__(self, mass, inertiaMatrix, omegaSqrToDragTorque, disturbanceTorqueStdDev,estimator = "6dof",drone_type=DroneType.robot_drone):
@@ -81,7 +76,7 @@ class Vehicle:
         #record state
         self.posHist.append(self._pos)
         self.velHist.append(self._vel)
-        self.attHist.append(self._att)   
+        self.attHist.append(self._att)
 
     def run_robot(self, dt, motorThrustCommands):
 
@@ -124,7 +119,7 @@ class Vehicle:
         #record state
         self.posHist.append(self._pos)
         self.velHist.append(self._vel)
-        self.attHist.append(self._att)   
+        self.attHist.append(self._att)
 
     def kalman_predict(self, dt):
 
@@ -252,6 +247,3 @@ class Vehicle2D:
         vx = vel[0] + (math.cos(att) * acc[0] - math.sin(att) * acc[1]) * dt
         vy = vel[1] + (math.sin(att) * acc[0] + math.cos(att) * acc[1]) * dt
         return [x, y], [vx, vy], theta
-
-
-

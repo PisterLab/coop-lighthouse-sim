@@ -3,7 +3,8 @@ from __future__ import division, print_function
 import numpy as np
 from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py3dmath
 import copy
-from vehicle import Vehicle, DroneType
+from vehicle import Vehicle
+from utils import DroneType
 
 class MeasurementHandler:
 	def __init__(self, vehicles):
@@ -13,13 +14,13 @@ class MeasurementHandler:
 		self._lighthouse_drones = [drone for drone in self._vehicles if drone.drone_type == lighthouse_drone]
 		self._anchor_drones = [drone for drone in self._vehicles if drone.drone_type == anchor_drone]
 
-		
+
 		#global list of current anchor, robot, and robot lighthouse locations
 		# self._currRobotLocations = []
 		# self._currLighthouseLocations =[]
 		# self._currAnchorLocations = []
 
-		#global list of previous robot and lighthouse locations 
+		#global list of previous robot and lighthouse locations
 		# self._prevRobotLocations = []
 		# self._prevLighthouseLocations = []
 
@@ -29,7 +30,7 @@ class MeasurementHandler:
 	# 	self._prevRobotLocations = copy.deepcopy(self._currRobotLocations)
 	# 	self._prevLighthouseLocations = copy.deepcopy(self._currLighthouseLocations)
 
-	# 	#update current states from array of robots passed in 
+	# 	#update current states from array of robots passed in
 	# 	self._currLighthouseLocations = []
 
 	def get_measurement(self, drone):
@@ -48,7 +49,7 @@ class MeasurementHandler:
 			return (z, measurer_pos_p)
 		else:
 			return None
-		
+
 	def compute_lighthouse_meas(self, unknown_anchor):
 
 
