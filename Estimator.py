@@ -7,7 +7,7 @@ import math
 
 class Estimator3Dof:
 
-	def __init__(self, pos = Vec3(0,0,0), vel = Vec3(0,0,0), att=Rotation.identity(),d = Vec3(0,0,0), drone_type):
+	def __init__(self, pos = Vec3(0,0,0), vel = Vec3(0,0,0), att=Rotation.identity(),d = Vec3(0,0,0), drone_type= DroneType.robot_drone):
 		
 		self._stateHistP = []
 		self._posNoise = [0.05,0.05]
@@ -28,12 +28,12 @@ class Estimator3Dof:
              [0, 0, (math.cos(self._state_m[2]) * accImu[0] - math.sin(self._state_m[2]) *
                      accImu[1]) * dt, 0, 1]]
 
-        return A
+		return A
 
 	def kalmanPredict(self, accImu, gyroImu, dt, measurement):
 		if self._drone_type == DroneType.lighthouse_drone:
 			self.kalmanPredictLighthouse(accImu, gyroImu, dt, measurement)
-		else if self._drone_type == DroneType.anchor_drone:
+		elif self._drone_type == DroneType.anchor_drone:
 			self.kalmandPredictAnchor(accImu, gyroImu, dt, measurement)
 		else:
 			self.kalmanPredictRobot(accImu, gyroImu, dt, measurement)
@@ -56,15 +56,16 @@ class Estimator3Dof:
 
 		if measurement[0] == None:
 			# calc noise corrupted measurement
-            self._stateHistP.append(self._stateHistP)
+			self._stateHistP.append(self._stateHistP)
             #self._state_p does not change
             #self._Pm does not change
 
-        else:
+		else:
         	# lighthouse measurement is available
 
-            x_a = measurement[1][0]
-            y_a = measurement[1][1]
+			x_a = measurement[1][0]
+			y_a = measurement[1][1]
+
 
             # calculate noise corrupted measurement
             c_noise = np.random.randn() * .001  # compass noise
@@ -82,15 +83,19 @@ class Estimator3Dof:
             H_mat = np.array([[-np.sin(angle) / r, np.cos(angle) / r, 0, 0, 0],
                                [0, 0, 1, 0, 0]])
 
-            # calculate M. I could potentially add two more entries: var(x_a), var(y_a)
-            M = np.array([[1, 0], [0, 1]])
+
+			# calculate M. I could potentially add two more entries: var(x_a), var(y_a)
+			M = np.array([[1, 0], [0, 1]])
+
 
             # calculate zhat
             zhat = np.array([[angle], [self._state_p[2]]])
 
-            # calculate R(noise covariance matrix)
-            compass_w = 0.001 * 0.001
-            R_mat = [[sig_l * sig_l, 0], [0, compass_w]]
+
+			# calculate R(noise covariance matrix)
+			compass_w = 0.001 * 0.001
+			R_mat = [[sig_l * sig_l, 0], [0, compass_w]]
+
 
             # Kalman gain
             # TODO: Switch to transposing function
@@ -99,12 +104,14 @@ class Estimator3Dof:
 
 
 
+
 	def kalmanPredictAnchor(self, accImu, gyroImu, dt, measurement):
 		# TODO: fill in
-
+		return
 
 	def kalmanPredictRobot(self, accImu, gyroImu, dt, measurement):
 		# TODO: fill in
+		return
 
 	def kalmanUpdate(self, dt):
 		self._state_m = copy.deepcopy(self._state_p)	
@@ -133,12 +140,17 @@ class Estimator6Dof:
 		self._state_m= State(pos,vel,d,att)
 		self._state_p = State(pos,vel,d,att)
 		self._Pp = None
-		self._Pm = None
+		self._Pm = np.eye(9)*0.01
 		self._stateHistP = []
 		self._posNoise = [0.01,0.01,0.01]
 		self._velNoise = [0.01,0.01,0.01]
 		self._dNoise = [0.01,0.01,0.01]
+		self._debug = False 
 		#state vars
+
+	def debugLinearization(self):
+		if self._debug == False:
+			self._debug = True
 
 	def linearizeDynamics(self,accImu, gyroImu, dt):
 		#create linearized A matrix
@@ -196,9 +208,11 @@ class Estimator6Dof:
 
 		#process noise 
 		L = np.diag([dt, dt, dt, dt, dt, dt, dt, dt, dt])
-		Q = np.diag(np.concat(self._posNoise, self._velNoise, self._dNoise))
+
+		Q = np.diag(np.concatenate((self._posNoise, self._velNoise, self._dNoise)))
 
 		#covariance update
+
 		self._Pp = A * self._Pm * A.T + L * Q * L.T
 
 		#print(A)
@@ -223,7 +237,9 @@ class Estimator6Dof:
 
 
 	def kalmanUpdate(self, dt):
+		#no measurement update created yet
 		self._state_m = copy.deepcopy(self._state_p)
+		self._Pm = self._Pp
 
 
 class State:

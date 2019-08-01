@@ -1,4 +1,4 @@
-# (c) 2019 Mark Mueller 
+# (c) 2019 Mark Mueller
 
 from __future__ import print_function, division
 
@@ -27,9 +27,9 @@ endTime = 20
 #==============================================================================
 
 
-quadcopter1 = 2DVehicle(DroneType.lighthouse_drone)
-quadcopter2 = 2DVehicle(DroneType.robot_drone)
-quadcopter3 = 2DVehicle(DroneType.anchor_drone)
+quadcopter1 = Vehicle2D(DroneType.lighthouse_drone)
+quadcopter2 = Vehicle2D(DroneType.robot_drone)
+quadcopter3 = Vehicle2D(DroneType.anchor_drone)
 
 vehicle_list = [quadcopter1, quadcopter2, quadcopter3]
 
@@ -51,9 +51,9 @@ t = 0
 
 while index < numSteps:
     #define commands:
-    
+
     #mass-normalised thrust:
-    
+
     #run the simulator
     for drone in vehicle_list:
         drone.run(dt)
@@ -71,14 +71,14 @@ while index < numSteps:
     #print(quadrocopter._estimator._state_p.pos)
     #for plotting
     times[index] = t
-    
+
     t += dt
     index += 1
 
 #==============================================================================
 # Make the plots
 #==============================================================================
-   
+
 fig, ax = plt.subplots(6,1, sharex=True)
 
 ax[0].plot(times, posHistory[:,0], label='x')
