@@ -89,7 +89,7 @@ class MeasurementHandler:
 		for i in range(len(match_idx)):
 			if match_idx[i][0]:
 			    phi_matches.append(phis_k[i][0])
-			    lighthouse_pos_p.append([lighthouse_drones[i].xp_obj.x, lighthouse_drones[i].xp_obj.y])
+			    lighthouse_pos_p.append([lighthouse_drones[i]._estimator._state_p[0], lighthouse_drones[i]._estimator._state_p[1]])
 
 
 		# If the robot didn't cross an anchor
