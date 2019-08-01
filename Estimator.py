@@ -5,6 +5,7 @@ from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py
 import copy
 import math
 
+'''
 class Estimator3Dof:
 
 	def __init__(self, pos = Vec3(0,0,0), vel = Vec3(0,0,0), att=Rotation.identity(),d = Vec3(0,0,0), drone_type= DroneType.robot_drone):
@@ -67,40 +68,40 @@ class Estimator3Dof:
 			y_a = measurement[1][1]
 
 
-            # calculate noise corrupted measurement
-            c_noise = np.random.randn() * .001  # compass noise
-            l_noise = np.random.randn() * math.sqrt(self._Pp[2][2])  # lighthouse noise
-            sig_l = math.sqrt(self._Pp[2][2])
-            # l_noise = randn * compass_n
-            # l_noise = xp_obj.theta - phi     # this is the actual error of lighthouse i believe
+		# calculate noise corrupted measurement
+		c_noise = np.random.randn() * .001  # compass noise
+		l_noise = np.random.randn() * math.sqrt(self._Pp[2][2])  # lighthouse noise
+		sig_l = math.sqrt(self._Pp[2][2])
+		# l_noise = randn * compass_n
+		# l_noise = xp_obj.theta - phi     # this is the actual error of lighthouse i believe
 
-            z = measurement[0]
+		z = measurement[0]
 
-            # calculate H
-            # TODO: Switch to transposing function
-            r = np.linalg.norm(np.array([self._state_p[0:2]]).T - [[x_a], [y_a]])
-            angle = np.arctan2(self._state_p[1] - y_a, self._state_p[0] - x_a)
-            H_mat = np.array([[-np.sin(angle) / r, np.cos(angle) / r, 0, 0, 0],
-                               [0, 0, 1, 0, 0]])
-
-
-			# calculate M. I could potentially add two more entries: var(x_a), var(y_a)
-			M = np.array([[1, 0], [0, 1]])
+		# calculate H
+		# TODO: Switch to transposing function
+		r = np.linalg.norm(np.array([self._state_p[0:2]]).T - [[x_a], [y_a]])
+		angle = np.arctan2(self._state_p[1] - y_a, self._state_p[0] - x_a)
+		H_mat = np.array([[-np.sin(angle) / r, np.cos(angle) / r, 0, 0, 0],
+		                   [0, 0, 1, 0, 0]])
 
 
-            # calculate zhat
-            zhat = np.array([[angle], [self._state_p[2]]])
+		# calculate M. I could potentially add two more entries: var(x_a), var(y_a)
+		M = np.array([[1, 0], [0, 1]])
 
 
-			# calculate R(noise covariance matrix)
-			compass_w = 0.001 * 0.001
-			R_mat = [[sig_l * sig_l, 0], [0, compass_w]]
+		# calculate zhat
+		zhat = np.array([[angle], [self._state_p[2]]])
 
 
-            # Kalman gain
-            # TODO: Switch to transposing function
-            kalman_gain = np.dot(np.dot(self._Pp, H_mat.T), np.linalg.inv(
-                np.dot(np.dot(H_mat, self._Pp), H_mat.T) + np.dot(np.dot(M, R_mat), M.T)))
+		# calculate R(noise covariance matrix)
+		compass_w = 0.001 * 0.001
+		R_mat = [[sig_l * sig_l, 0], [0, compass_w]]
+
+
+		# Kalman gain
+		# TODO: Switch to transposing function
+		kalman_gain = np.dot(np.dot(self._Pp, H_mat.T), np.linalg.inv(
+		    np.dot(np.dot(H_mat, self._Pp), H_mat.T) + np.dot(np.dot(M, R_mat), M.T)))
 
 
 
@@ -116,7 +117,7 @@ class Estimator3Dof:
 	def kalmanUpdate(self, dt):
 		self._state_m = copy.deepcopy(self._state_p)	
 
-
+'''
 
 class Estimator6Dof:
 

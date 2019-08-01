@@ -66,6 +66,12 @@ class Vehicle:
 
     def get_pos_hist(self):
         return np.array([row.to_list() for row in self.posHist])
+
+    def get_vel_hist(self):
+        return np.array([row.to_list() for row in self.velHist])
+
+    def get_att_hist(self):
+        return np.array([row.to_euler_YPR() for row in self.attHist])
     def get_est_pos_hist(self):
         return np.array([row.to_list() for row in self.estPosHistory])
     def get_est_vel_hist(self):

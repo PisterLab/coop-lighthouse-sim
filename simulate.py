@@ -174,18 +174,7 @@ while index < numSteps:
         #run the estimator
         quadrocopter.kalman_predict(dt)
         quadrocopter.kalman_update(dt)
-        #print(quadrocopter._estimator._state_p.pos)
-        #for plotting
-        times[index] = t
-        inputHistory[index,:]     = motForceCmds
-        posHistory[index,:]       = quadrocopter._pos.to_list()
-        velHistory[index,:]       = quadrocopter._vel.to_list()
-        attHistory[index,:]       = quadrocopter._att.to_euler_YPR()
-        angVelHistory[index,:]    = quadrocopter._omega.to_list()
-        motForcesHistory[index,:] = quadrocopter.get_motor_forces()
-        estPosHistory[index, :] = quadrocopter._estimator._state_p.pos.to_list() 
-        estVelHistory[index, :] = quadrocopter._estimator._state_p.vel.to_list() 
-        estAttHistory[index, :] =quadrocopter._estimator._state_p.att.to_euler_YPR()
+
     t += dt
     index += 1
 
@@ -196,6 +185,14 @@ while index < numSteps:
 fig, ax = plt.subplots(6,1, sharex=True)
 
 #TODO: get histories from vehicle objects and turn this into a function that plots a specific robot
+posHistory = quadrocopter.get_pos_hist()
+times = quadrocopter.get_times()
+velHistory = quadrocopter.get_vel_hist()
+attHistory = quadrocopter.get_att_hist()
+angVelHistory = quadrocopter.get_angle_vel_history()
+inputHistory = quadrocopter.get_input_history()
+estPosHistory = quadrocopter.get_est_pos_hist()
+
 ax[0].plot(times, posHistory[:,0], label='x')
 ax[0].plot(times, posHistory[:,1], label='y')
 ax[0].plot(times, posHistory[:,2], label='z')
