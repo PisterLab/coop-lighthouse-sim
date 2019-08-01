@@ -103,11 +103,16 @@ class Estimator3Dof:
             kalman_gain = np.dot(np.dot(self._Pp, H_mat.T), np.linalg.inv(
                 np.dot(np.dot(H_mat, self._Pp), H_mat.T) + np.dot(np.dot(M, R_mat), M.T)))
 
+		diff = []
 
-
-        if measurement[0]:
+        if measurement:
             diff.append(z[0] - zhat[0])
             diff.append(z[1] - zhat[1])
+			diff[0] = ((diff[0] + PI) % (2 * PI)) - PI
+            diff[1] = ((diff[1] + PI) % (2 * PI)) - PI
+		else:
+			diff.append(z[0] - zhat[0])
+            diff[0] = ((diff[0] + PI) % (2 * PI)) - PI
 
         # TODO: Switch to transposing function
         xp_vec_trans = np.array([self._state_p][:]).T
@@ -128,7 +133,6 @@ class Estimator3Dof:
         # robot. X_a is the set of anchor point locations.
 
 	def kalmanPredictAnchor(self, accImu, omegaImu, magImu, dt, measurement):
-
 		# TODO: fill in
 		if measurement != None:
 
