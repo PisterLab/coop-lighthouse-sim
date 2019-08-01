@@ -55,7 +55,7 @@ class Estimator3Dof:
 		#covariance update
 		self._Pp = A * self._Pm * A.T + L * Q * L.T
 
-		if measurement[0] == None:
+		if measurement == None:
 			# calc noise corrupted measurement
 			self._stateHistP.append(self._stateHistP)
             #self._state_p does not change
@@ -108,11 +108,14 @@ class Estimator3Dof:
 
 	def kalmanPredictAnchor(self, accImu, omegaImu, magImu, dt, measurement):
 		# TODO: fill in
+		self._Pp = self._Pm
+		if measurement != None:
 
 		return
 
 	def kalmanPredictRobot(self, accImu, omegaImu, magImu, dt, measurement):
 		# TODO: fill in
+		if measurement != None:
 		return
 
 	def kalmanUpdate(self, dt):
@@ -139,7 +142,7 @@ class Estimator6Dof:
 		self._inertia = inertiaMatrix
 		self._omegaSqrToDragTorque = omegaSqrToDragTorque
 		self._disturbanceTorqueStdDev = disturbanceTorqueStdDev
-		self._state_m= State(pos,vel,d,att)
+		self._state_m = State(pos,vel,d,att)
 		self._state_p = State(pos,vel,d,att)
 		self._Pp = None
 		self._Pm = np.eye(9)*0.01
