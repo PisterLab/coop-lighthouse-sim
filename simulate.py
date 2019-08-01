@@ -166,7 +166,7 @@ while index < numSteps:
         motForceCmds = mixer.get_motor_force_cmd(thrustNormDes, angAccDes)
         
         #run the simulator
-        quadrocopter.run(dt, motForceCmds)
+        quadrocopter.run(dt, motForceCmds, t)
 
         #check for lighthouse measurements that have occured
 
@@ -195,6 +195,7 @@ while index < numSteps:
    
 fig, ax = plt.subplots(6,1, sharex=True)
 
+#TODO: get histories from vehicle objects and turn this into a function that plots a specific robot
 ax[0].plot(times, posHistory[:,0], label='x')
 ax[0].plot(times, posHistory[:,1], label='y')
 ax[0].plot(times, posHistory[:,2], label='z')
