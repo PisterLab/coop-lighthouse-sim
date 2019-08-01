@@ -6,7 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py3dmath
-from vehicle import Vehicle, 2DVehicle, DroneType
+from vehicle import Vehicle, Vehicle2D
+from utils import DroneType
 
 from positioncontroller import PositionController
 from attitudecontroller import QuadcopterAttitudeControllerNested

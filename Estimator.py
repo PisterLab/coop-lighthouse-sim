@@ -4,11 +4,12 @@ import numpy as np
 from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py3dmath
 import copy
 import math
+from utils import DroneType
 
 class Estimator3Dof:
 
 	def __init__(self, pos = Vec3(0,0,0), vel = Vec3(0,0,0), att=Rotation.identity(),d = Vec3(0,0,0), drone_type= DroneType.robot_drone):
-		
+
 		self._stateHistP = []
 		self._posNoise = [0.05,0.05]
 		self._velNoise = [0.001,0.001]
@@ -43,7 +44,7 @@ class Estimator3Dof:
 		#linearize A matrix
 		A = self.linearizeDynamics(accImu, gyroImu,dt)
 
-		#process noise 
+		#process noise
 		L = [[dt, 0, 0, 0, 0],
              [0, dt, 0, 0, 0],
              [0, 0, dt, 0, 0],
@@ -145,7 +146,7 @@ class Estimator3Dof:
 		return
 
 	def kalmanUpdate(self, dt):
-		self._state_m = copy.deepcopy(self._state_p)	
+		self._state_m = copy.deepcopy(self._state_p)
 
 
 
@@ -176,7 +177,7 @@ class Estimator6Dof:
 		self._posNoise = [0.01,0.01,0.01]
 		self._velNoise = [0.01,0.01,0.01]
 		self._dNoise = [0.01,0.01,0.01]
-		self._debug = False 
+		self._debug = False
 		#state vars
 
 	def debugLinearization(self):
@@ -190,7 +191,7 @@ class Estimator6Dof:
 
 		A_pos = np.eye(3)
 		A_d = np.eye(3)
-			
+
 		#position to velocity model
 		A_posvel = self._state_m.att.to_rotation_matrix()*dt
 		#print(self._state_m.att.to_rotation_matrix)
@@ -203,8 +204,8 @@ class Estimator6Dof:
 
 		#dynamics are R*(I + |_del_|) * vel
 		#print(self._state_m.vel.to_array())
-		grad_d0 = self._state_m.att.to_rotation_matrix()*d0*self._state_m.vel.to_array() * dt 
-		grad_d1 = self._state_m.att.to_rotation_matrix()*d1*self._state_m.vel.to_array() * dt 
+		grad_d0 = self._state_m.att.to_rotation_matrix()*d0*self._state_m.vel.to_array() * dt
+		grad_d1 = self._state_m.att.to_rotation_matrix()*d1*self._state_m.vel.to_array() * dt
 		grad_d2 = self._state_m.att.to_rotation_matrix()*d2*self._state_m.vel.to_array() * dt
 
 
@@ -215,8 +216,8 @@ class Estimator6Dof:
 
 		#velocity from attitude error = -g*(-[del x])*R_T * e3
 		grad_d0 = 9.81*d0*self._state_m.att.to_rotation_matrix().T*Vec3(0,0,1).to_array() * dt
-		grad_d1 = 9.81*d1*self._state_m.att.to_rotation_matrix().T*Vec3(0,0,1).to_array() * dt 
-		grad_d2 = 9.81*d2*self._state_m.att.to_rotation_matrix().T*Vec3(0,0,1).to_array() * dt 
+		grad_d1 = 9.81*d1*self._state_m.att.to_rotation_matrix().T*Vec3(0,0,1).to_array() * dt
+		grad_d2 = 9.81*d2*self._state_m.att.to_rotation_matrix().T*Vec3(0,0,1).to_array() * dt
 		A_velatt = np.column_stack((grad_d0,grad_d1,grad_d2))
 
 		#att error from att error. this is from the covariance update paper
@@ -225,7 +226,7 @@ class Estimator6Dof:
 
 		A_attatt = mat
 
-		#create A matrix 
+		#create A matrix
 		A = np.block([[A_pos, A_posvel, A_pos_att],
 					  [np.zeros((3,3)), A_velvel, A_velatt],
 					  [np.zeros((3,3)), np.zeros((3,3)), A_attatt]])
@@ -237,7 +238,7 @@ class Estimator6Dof:
 		#linearize A matrix
 		A = self.linearizeDynamics(accImu, gyroImu,dt)
 
-		#process noise 
+		#process noise
 		L = np.diag([dt, dt, dt, dt, dt, dt, dt, dt, dt])
 
 		Q = np.diag(np.concatenate((self._posNoise, self._velNoise, self._dNoise)))
@@ -248,11 +249,11 @@ class Estimator6Dof:
 
 		#print(A)
 		#position prediction
-		dposBody = self._state_m.vel * dt + Vec3(0,0,accImu[2]*dt*dt / 2.0) 
+		dposBody = self._state_m.vel * dt + Vec3(0,0,accImu[2]*dt*dt / 2.0)
 		#self._state_p.pos = self._state_m.att * dposBody - Vec3(0,0,9.81*dt*dt / 2.0)
 		self._state_p.pos = self._state_m.pos + self._state_m.att * dposBody - Vec3(0,0,9.81*dt*dt / 2.0)
-		
-		#velocity prediction: zacc - gyro x vel - g_body 
+
+		#velocity prediction: zacc - gyro x vel - g_body
 		gyroCross = gyroImu.to_cross_product_matrix()
 		self._state_p.vel = self._state_m.vel +  dt*(Vec3(0,0,accImu[2])-gyroCross*self._state_m.vel - self._state_m.att.inverse() * Vec3(0,0,9.81))
 
@@ -261,10 +262,10 @@ class Estimator6Dof:
 		self._state_p.att = self._state_m.att*gyroRot
 		self._stateHistP.append(self._state_p)
 
-		#compare linearized dynamics to actual dynamics 
+		#compare linearized dynamics to actual dynamics
 		#gyroRot = Rotation.from_rotation_vector(gyroImu*dt)
 		#self._state_p.devectorize(A*self._state_m.getVector(),self._state_m.att*gyroRot)
-		
+
 
 
 	def kalmanUpdate(self, dt):
@@ -289,8 +290,5 @@ class State:
 		self.vel = Vec3(state_vector[3,0], state_vector[4,0],state_vector[5,0])
 		self.d = Vec3(state_vector[6,0], state_vector[7,0], state_vector[8,0])
 
-		
+
 		self.att = att
-
-
-

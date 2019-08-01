@@ -6,12 +6,7 @@ from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py
 from motor import Motor
 from imu import IMU, IMU2D
 from Estimator import Estimator6Dof #, Estimator3Dof
-import enum
-
-class DroneType(enum.Enum):
-    lighthouse_drone = enum.auto()      # localizing itself and localizing anchor robots
-    robot_drone = enum.auto()     # only receiving measurements
-    anchor_drone = enum.auto()      # in place, acts as an anchor point
+import utils.DroneType as DroneType
 
 class Vehicle:
     def __init__(self, mass, inertiaMatrix, omegaSqrToDragTorque, disturbanceTorqueStdDev,estimator = "6dof",drone_type=DroneType.robot_drone):
@@ -54,23 +49,54 @@ class Vehicle:
         self.posHist = []
         self.velHist = []
         self.attHist = []
+        self.inputHistory = []
+        self.angleVelHistory = []
+        self.motForcesHistory = []
+        self.estPosHistory = []
+        self.estVelHistory = []
+        self.estAttHistory = []
+        self.times = []
 
         return
+
     def get_pos_hist(self):
         return np.array([row.to_list() for row in self.posHist])
+    def get_est_pos_hist(self):
+        return np.array([row.to_list() for row in self.estPosHistory])
+    def get_est_vel_hist(self):
+        return np.array([row.to_list() for row in self.estVelHistory])
+    def get_est_att_hist(self): 
+        return np.array([row.to_euler_YPR() for row in self.estAttHistory])
+    def get_input_history(self):
+        return np.array(self.inputHistory)
+    def get_angle_vel_history(self):
+        return np.array([row.to_list() for row in self.angleVelHistory])
+
+    def get_mot_force_history(self):
+        return np.array(self.motForcesHistory)
+    def get_times(self):
+        return np.array(self.times)
 
     def add_motor(self, motorPosition, spinDir, minSpeed, maxSpeed, speedSqrToThrust, speedSqrToTorque, timeConst, inertia):
         self._motors.append(Motor(motorPosition, spinDir, minSpeed, maxSpeed, speedSqrToThrust, speedSqrToTorque, timeConst, inertia))
         return
 
 
-    def run(self, dt, motorThrustCommands):
+    def run(self, dt, motorThrustCommands, t):
 
         if self.drone_type == DroneType.anchor_drone:
             self.run_anchor()
         else:
             self.run_robot(dt, motorThrustCommands)
 
+        #store history
+        self.angleVelHistory.append(self._omega)
+        self.estPosHistory.append(self._estimator._state_p.pos)
+        self.estVelHistory.append(self._estimator._state_p.vel)
+        self.estAttHistory.append(self._estimator._state_p.att)
+        self.inputHistory.append(motorThrustCommands)
+        self.motForcesHistory.append(self.get_motor_forces())
+        self.times.append(t)
     def run_anchor(self):
 
         #robot is stationary since it is an anchor
@@ -81,7 +107,7 @@ class Vehicle:
         #record state
         self.posHist.append(self._pos)
         self.velHist.append(self._vel)
-        self.attHist.append(self._att)   
+        self.attHist.append(self._att)
 
     def run_robot(self, dt, motorThrustCommands):
 
@@ -124,7 +150,7 @@ class Vehicle:
         #record state
         self.posHist.append(self._pos)
         self.velHist.append(self._vel)
-        self.attHist.append(self._att)   
+        self.attHist.append(self._att)
 
     def kalman_predict(self, dt):
 
@@ -252,6 +278,3 @@ class Vehicle2D:
         vx = vel[0] + (math.cos(att) * acc[0] - math.sin(att) * acc[1]) * dt
         vy = vel[1] + (math.sin(att) * acc[0] + math.cos(att) * acc[1]) * dt
         return [x, y], [vx, vy], theta
-
-
-
