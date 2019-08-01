@@ -4,8 +4,14 @@ from __future__ import division, print_function
 import numpy as np
 from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py3dmath
 from motor import Motor
-from imu import IMU, 2DIMU
-from Estimator import Estimator6Dof, Estimator3Dof
+from imu import IMU, IMU2D
+from Estimator import Estimator6Dof #, Estimator3Dof
+import enum
+
+class DroneType(enum.Enum):
+    lighthouse_drone = enum.auto()      # localizing itself and localizing anchor robots
+    robot_drone = enum.auto()     # only receiving measurements
+    anchor_drone = enum.auto()      # in place, acts as an anchor point
 
 class Vehicle:
     def __init__(self, mass, inertiaMatrix, omegaSqrToDragTorque, disturbanceTorqueStdDev,estimator = "6dof",drone_type=DroneType.robot_drone):
@@ -50,7 +56,8 @@ class Vehicle:
         self.attHist = []
 
         return
-
+    def get_pos_hist(self):
+        return np.array([row.to_list() for row in self.posHist])
 
     def add_motor(self, motorPosition, spinDir, minSpeed, maxSpeed, speedSqrToThrust, speedSqrToTorque, timeConst, inertia):
         self._motors.append(Motor(motorPosition, spinDir, minSpeed, maxSpeed, speedSqrToThrust, speedSqrToTorque, timeConst, inertia))
@@ -59,6 +66,24 @@ class Vehicle:
 
     def run(self, dt, motorThrustCommands):
 
+        if self.drone_type == DroneType.anchor_drone:
+            self.run_anchor()
+        else:
+            self.run_robot(dt, motorThrustCommands)
+
+    def run_anchor(self):
+
+        #robot is stationary since it is an anchor
+        self._pos = self._pos
+        self._vel = 0
+        self._acc = 0
+
+        #record state
+        self.posHist.append(self._pos)
+        self.velHist.append(self._vel)
+        self.attHist.append(self._att)   
+
+    def run_robot(self, dt, motorThrustCommands):
 
         totalForce_b  = Vec3(0,0,0)
         totalTorque_b = Vec3(0,0,0)
@@ -99,15 +124,15 @@ class Vehicle:
         #record state
         self.posHist.append(self._pos)
         self.velHist.append(self._vel)
-        self.attHist.append(self._att)
+        self.attHist.append(self._att)   
 
-    def kalman_predict(self, dt, measurement):
+    def kalman_predict(self, dt):
 
         if self._estimator == None:
             return
         else:
             #print("kalman predicting")
-            self._estimator.kalmanPredict(self._accImu,self._omegaImu,dt, measurement)
+            self._estimator.kalmanPredict(self._accImu,self._omegaImu,dt)
 
     def kalman_update(self, dt):
 
@@ -223,13 +248,10 @@ class Vehicle2D:
     def step_dynamics(self, pos, vel, att, acc, omega, dt):
         x = pos[0] + vel[0] * dt
         y = pos[1] + vel[1] * dt
-        theta = att + dt * omega + 3.14159) % (2 * 3.14159) - 3.14159
+        theta = (att + dt * omega + 3.14159) % (2 * 3.14159) - 3.14159
         vx = vel[0] + (math.cos(att) * acc[0] - math.sin(att) * acc[1]) * dt
         vy = vel[1] + (math.sin(att) * acc[0] + math.cos(att) * acc[1]) * dt
         return [x, y], [vx, vy], theta
 
 
-class DroneType(enum.Enum):
-    lighthouse_drone = enum.auto()      # localizing itself and localizing anchor robots
-    robot_drone = enum.auto()     # only receiving measurements
-    anchor_drone = enum.auto()      # in place, acts as an anchor point
+
