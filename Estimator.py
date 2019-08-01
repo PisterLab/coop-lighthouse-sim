@@ -20,7 +20,7 @@ class Estimator3Dof:
 		self._state_m= np.array([pos[0] + np.random.rand() * self._posNoise[0], pos[1] + np.random_rand() * self._posNoise[2], att.to_euler_YPR()[0] + np.randome.rand() * self._thetNoise])
 		self._state_p = self._state_m
 
-	def linearizeDynamics(self, accImu, gyroImu, magImu, dt):
+	def linearizeDynamics(self, accImu, omegaImu, magImu, dt):
 		A = [[1, 0, 0, dt, 0],
              [0, 1, 0, 0, dt],
              [0, 0, 1, 0, 0],
@@ -31,7 +31,7 @@ class Estimator3Dof:
 
 		return A
 
-	def kalmanPredict(self, accImu, gyroImu, dt, measurement):
+	def kalmanPredict(self, accImu, omegaImu, magImu, dt, measurement):
 		if self._drone_type == DroneType.lighthouse_drone:
 			self.kalmanPredictLighthouse(accImu, omegaImu, dt, measurement)
 		elif self._drone_type == DroneType.anchor_drone:
@@ -40,7 +40,7 @@ class Estimator3Dof:
 			self.kalmanPredictRobot(accImu, omegaImu, dt, measurement)
 
 
-	def kalmanPredictLighthouse(self, accImu, gyroImu, dt, measurement):
+	def kalmanPredictLighthouse(self, accImu, omegaImu, magImu, dt, measurement):
 		#linearize A matrix
 		A = self.linearizeDynamics(accImu, gyroImu,dt)
 
