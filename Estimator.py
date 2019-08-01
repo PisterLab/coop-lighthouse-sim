@@ -9,9 +9,6 @@ class Estimator3Dof:
 
 	def __init__(self, pos = Vec3(0,0,0), vel = Vec3(0,0,0), att=Rotation.identity(),d = Vec3(0,0,0), drone_type):
 		
-		self._state_m= np.array([pos[0], pos[1], att.to_euler_YPR()[0]])
-		self._state_p = np.array([pos[0], pos[1], att.to_euler_YPR()[0]])
-		self._Pp = None
 		self._stateHistP = []
 		self._posNoise = [0.05,0.05]
 		self._velNoise = [0.001,0.001]
@@ -19,6 +16,8 @@ class Estimator3Dof:
 		self._Pm = np.diag([self._posNoise[0], self._posNoise[1], self._thetNoise, self._velNoise[0], self._velNoise[1]])
 		self._Pp = np.zeros((5,5))
 		self._drone_type = drone_type
+		self._state_m= np.array([pos[0] + np.random.rand() * self._posNoise[0], pos[1] + np.random_rand() * self._posNoise[2], att.to_euler_YPR()[0] + np.randome.rand() * self._thetNoise])
+		self._state_p = self._state_m
 
 	def linearizeDynamics(self, accImu, gyroImu, dt):
 		A = [[1, 0, 0, dt, 0],
@@ -50,12 +49,11 @@ class Estimator3Dof:
              [0, 0, dt, 0, 0],
              [0, 0, 0, -dt * math.sin(self._state_m[2]), -dt * math.cos(self._state_m[2])],
              [0, 0, 0, dt * math.cos(self._state_m[2]), -dt * math.sin(self._state_m[2])]]
-		Q = np.diag(np.concat(self._posNoise, [self._thethNoise], self._velNoise))
+		Q = np.diag(np.concat(self._posNoise, [self._thetNoise], self._velNoise))
 
 		#covariance update
 		self._Pp = A * self._Pm * A.T + L * Q * L.T
 
-		# TODO: continue implementing kalmanPredict in 3dof after measurement handler has been established in simulation
 		if measurement[0] == None:
 			# calc noise corrupted measurement
             self._stateHistP.append(self._stateHistP)
@@ -64,26 +62,23 @@ class Estimator3Dof:
 
         else:
         	# lighthouse measurement is available
-        	# NEED REF LOCATION
-
 
             x_a = measurement[1][0]
             y_a = measurement[1][1]
 
             # calculate noise corrupted measurement
-            c_noise = np.random.randn() * compass_n  # compass noise
-            l_noise = np.random.randn() * math.sqrt(self.Pp[k - 1][2][2])  # lighthouse noise
-            sig_l = math.sqrt(self.Pp[k - 1][2][2])
+            c_noise = np.random.randn() * .001  # compass noise
+            l_noise = np.random.randn() * math.sqrt(self._Pp[2][2])  # lighthouse noise
+            sig_l = math.sqrt(self._Pp[2][2])
             # l_noise = randn * compass_n
             # l_noise = xp_obj.theta - phi     # this is the actual error of lighthouse i believe
 
-            z = np.array([[((phi + l_noise + PI) % (2 * PI)) - PI],
-                               [((self.state_truth_arr[k].theta + c_noise + PI) % (2 * PI)) - PI]])
+            z = measurement[0]
 
             # calculate H
             # TODO: Switch to transposing function
-            r = np.linalg.norm(np.array([xp_vec[0:2]]).T - [[x_a], [y_a]])
-            angle = np.arctan2(self.xp_obj.y - y_a, self.xp_obj.x - x_a)
+            r = np.linalg.norm(np.array([self._state_p[0:2]]).T - [[x_a], [y_a]])
+            angle = np.arctan2(self._state_p[1] - y_a, self._state_p[0] - x_a)
             H_mat = np.array([[-np.sin(angle) / r, np.cos(angle) / r, 0, 0, 0],
                                [0, 0, 1, 0, 0]])
 
@@ -91,7 +86,7 @@ class Estimator3Dof:
             M = np.array([[1, 0], [0, 1]])
 
             # calculate zhat
-            zhat = np.array([[angle], [self.xp_obj.theta]])
+            zhat = np.array([[angle], [self._state_p[2]]])
 
             # calculate R(noise covariance matrix)
             compass_w = 0.001 * 0.001
@@ -99,8 +94,8 @@ class Estimator3Dof:
 
             # Kalman gain
             # TODO: Switch to transposing function
-            kalman_gain = np.dot(np.dot(self.Pp[k], H_mat.T), np.linalg.inv(
-                np.dot(np.dot(H_mat, self.Pp[k]), H_mat.T) + np.dot(np.dot(M, R_mat), M.T)))
+            kalman_gain = np.dot(np.dot(self._Pp, H_mat.T), np.linalg.inv(
+                np.dot(np.dot(H_mat, self._Pp), H_mat.T) + np.dot(np.dot(M, R_mat), M.T)))
 
 
 
