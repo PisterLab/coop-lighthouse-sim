@@ -31,7 +31,7 @@ class Estimator3Dof:
 
 		return A
 
-	def kalmanPredict(self, accImu, omegaImu, magImu, dt, measurement):
+	def kalmanPredict(self, accImu, gyroImu, dt, measurement):
 		if self._drone_type == DroneType.lighthouse_drone:
 			self.kalmanPredictLighthouse(accImu, omegaImu, dt, measurement)
 		elif self._drone_type == DroneType.anchor_drone:
@@ -40,7 +40,7 @@ class Estimator3Dof:
 			self.kalmanPredictRobot(accImu, omegaImu, dt, measurement)
 
 
-	def kalmanPredictLighthouse(self, accImu, omegaImu, magImu, dt, measurement):
+	def kalmanPredictLighthouse(self, accImu, gyroImu, dt, measurement):
 		#linearize A matrix
 		A = self.linearizeDynamics(accImu, gyroImu,dt)
 
@@ -75,7 +75,9 @@ class Estimator3Dof:
             # l_noise = randn * compass_n
             # l_noise = xp_obj.theta - phi     # this is the actual error of lighthouse i believe
 
+
             z = [measurement[0], magImu]
+
 
             # calculate H
             # TODO: Switch to transposing function
@@ -103,17 +105,11 @@ class Estimator3Dof:
             kalman_gain = np.dot(np.dot(self._Pp, H_mat.T), np.linalg.inv(
                 np.dot(np.dot(H_mat, self._Pp), H_mat.T) + np.dot(np.dot(M, R_mat), M.T)))
 
-        diff = []
+
 
         if measurement[0]:
             diff.append(z[0] - zhat[0])
             diff.append(z[1] - zhat[1])
-
-            diff[0] = ((diff[0] + PI) % (2 * PI)) - PI
-            diff[1] = ((diff[1] + PI) % (2 * PI)) - PI
-        else:
-            diff.append(z[0] - zhat[0])
-            diff[0] = ((diff[0] + PI) % (2 * PI)) - PI
 
         # TODO: Switch to transposing function
         xp_vec_trans = np.array([self._state_p][:]).T
@@ -136,11 +132,14 @@ class Estimator3Dof:
 
 
 
-	def kalmanPredictAnchor(self, accImu, gyroImu, dt, measurement):
+
+	def kalmanPredictAnchor(self, accImu, omegaImu, magImu, dt, measurement):
+
 		# TODO: fill in
+
 		return
 
-	def kalmanPredictRobot(self, accImu, gyroImu, dt, measurement):
+	def kalmanPredictRobot(self, accImu, omegaImu, magImu, dt, measurement):
 		# TODO: fill in
 		return
 
