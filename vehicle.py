@@ -49,23 +49,54 @@ class Vehicle:
         self.posHist = []
         self.velHist = []
         self.attHist = []
+        self.inputHistory = []
+        self.angleVelHistory = []
+        self.motForcesHistory = []
+        self.estPosHistory = []
+        self.estVelHistory = []
+        self.estAttHistory = []
+        self.times = []
 
         return
+
     def get_pos_hist(self):
         return np.array([row.to_list() for row in self.posHist])
+    def get_est_pos_hist(self):
+        return np.array([row.to_list() for row in self.estPosHistory])
+    def get_est_vel_hist(self):
+        return np.array([row.to_list() for row in self.estVelHistory])
+    def get_est_att_hist(self): 
+        return np.array([row.to_euler_YPR() for row in self.estAttHistory])
+    def get_input_history(self):
+        return np.array(self.inputHistory)
+    def get_angle_vel_history(self):
+        return np.array([row.to_list() for row in self.angleVelHistory])
+
+    def get_mot_force_history(self):
+        return np.array(self.motForcesHistory)
+    def get_times(self):
+        return np.array(self.times)
 
     def add_motor(self, motorPosition, spinDir, minSpeed, maxSpeed, speedSqrToThrust, speedSqrToTorque, timeConst, inertia):
         self._motors.append(Motor(motorPosition, spinDir, minSpeed, maxSpeed, speedSqrToThrust, speedSqrToTorque, timeConst, inertia))
         return
 
 
-    def run(self, dt, motorThrustCommands):
+    def run(self, dt, motorThrustCommands, t):
 
         if self.drone_type == DroneType.anchor_drone:
             self.run_anchor()
         else:
             self.run_robot(dt, motorThrustCommands)
 
+        #store history
+        self.angleVelHistory.append(self._omega)
+        self.estPosHistory.append(self._estimator._state_p.pos)
+        self.estVelHistory.append(self._estimator._state_p.vel)
+        self.estAttHistory.append(self._estimator._state_p.att)
+        self.inputHistory.append(motorThrustCommands)
+        self.motForcesHistory.append(self.get_motor_forces())
+        self.times.append(t)
     def run_anchor(self):
 
         #robot is stationary since it is an anchor
