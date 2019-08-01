@@ -53,13 +53,7 @@ class Estimator3Dof:
 		#covariance update
 		self._Pp = A * self._Pm * A.T + L * Q * L.T
 
-		if measurement == None:
-			# calc noise corrupted measurement
-			self._stateHistP.append(self._stateHistP)
-            #self._state_p does not change
-            #self._Pm does not change
-
-		else:
+		if measurement != None:
         	# lighthouse measurement is available
 
 			x_a = measurement[1][0]
@@ -129,15 +123,51 @@ class Estimator3Dof:
 
 	def kalmanPredictAnchor(self, accImu, omegaImu, magImu, dt, measurement):
 
-		# TODO: fill in
-		if measurement != None:
+        if measurement != None:
+            h = np.arctan2(self._state_p[1] - self.measurement[1][0], self._state_p[0] - self.measurement[1][2])
 
-		return
+            lighthouse_xy = self.measurement[1]
+
+            r = np.linalg.norm(self._state_p[0:2] - lighthouse_xy)
+            angle = ((np.arctan2(self._state_p[1] - lighthouse_xy[1], self._state_p[0] - lighthouse_xy[0]) + PI) % (2*PI)) - PI
+            H = (1/r) * np.array([-np.sin(angle), np.cos(angle)])
+            # H = [-(x_p(2,i)-y_l(i))/norm(x_p(:,i)-X_l(:,i))^2 , (x_p(1,i)-x_l(i))/norm(x_p(:,i)-X_l(:,i))^2;
+            #      -10*(x_p(1,i)-x_l(i))/(log(10)* norm(x_p(:,i)-X_l(:,i))^2), -10*(x_p(2,i)-y_l(i))/(log(10)* norm(x_p(:,i)-X_l(:,i))^2)];
+
+
+            W = np.array([[(self._state_p[1] - lighthouse_xy[1]) / np.power(np.linalg.norm(self._state_p - lighthouse_xy), 2), -(self._state_p[0] - lighthouse_xy[0]) / np.power(np.linalg.norm(self._state_p[0:2] - lighthouse_xy), 2), 1, 0],
+                            [10 * (self._state_p[0] - lighthouse_xy[0]) / (np.log(10) * np.power(np.linalg.norm(self._state_p[0:2] - lighthouse_xy), 2)), 10*(self._state_p[1]-lighthouse_xy[1]) / (np.log(10) * np.power(np.linalg.norm(self._state_p[0:2] - lighthouse_xy), 2)), 0 ,1]])
+
+            P_l = np.diag([.05**2, .05**2, (1.5 * 3.1415 / 180)**2])
+
+            R = np.array([np.append(P_l[0,:],[0]),
+                        np.append(P_l[1,:], [0]),
+                        np.append(P_l[2,:], [0]),
+                        [0,0,0,10**2]])
+
+            K = self._Pp[0:2, 0:2] @ H.T @ np.linalg.inv(H @ self._Pp[0:2, 0:2] @ H.T + W @ R @ W.T)
+            K = K[:,None]
+
+            # is the kalman gain helpful?
+
+
+
+            z_h_diff = ((z-h + PI) % (2*PI)) - PI
+
+
+            new_xm_xy = np.array(self._state_p[0:2][:,None] + K * z_h_diff)
+            self._state_p[0:2] = new_xm_xy
+
+            new_Pm = np.zeros((5,5))
+            new_Pm[0:2, 0:2] = np.array((np.identity(2) - K @ np.array([H])) @ self._Pp[0:2, 0:2])
+            self._Pm = new_Pm
+
 
 
 	def kalmanUpdate(self, accImu, omegaImu, dt):
 		pos, vel, theta = Vehicle.step_dynamics(self._state_m[0:2], self._state_m[3:], self._state_m[2], accImu, omegaImu, dt)
 		self._state_p = pos + [theta] + vel
+		self._stateHistP.append(self._state_p)
 		self._Pp = copy.deepcopy(self._Pm)
 
 
