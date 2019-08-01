@@ -130,7 +130,6 @@ class Estimator3Dof:
 	def kalmanPredictAnchor(self, accImu, omegaImu, magImu, dt, measurement):
 
 		# TODO: fill in
-		self._Pp = self._Pm
 		if measurement != None:
 
 		return
