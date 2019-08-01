@@ -6,7 +6,8 @@ from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py
 from motor import Motor
 from imu import IMU, IMU2D
 from Estimator import Estimator6Dof #, Estimator3Dof
-import utils.DroneType as DroneType
+from utils import DroneType
+from utils import step_dynamics
 
 class Vehicle:
     def __init__(self, mass, inertiaMatrix, omegaSqrToDragTorque, disturbanceTorqueStdDev,estimator = "6dof",drone_type=DroneType.robot_drone):
@@ -65,7 +66,7 @@ class Vehicle:
         return np.array([row.to_list() for row in self.estPosHistory])
     def get_est_vel_hist(self):
         return np.array([row.to_list() for row in self.estVelHistory])
-    def get_est_att_hist(self): 
+    def get_est_att_hist(self):
         return np.array([row.to_euler_YPR() for row in self.estAttHistory])
     def get_input_history(self):
         return np.array(self.inputHistory)
@@ -259,22 +260,10 @@ class Vehicle2D:
             self.run_anchor(dt)
 
     def run_lighthouse(self, dt):
-        self._pos, self._vel, self._att = self.step_dynamics(self._pos, self._vel, self._att, self._acc, self._omega, dt)
+        self._pos, self._vel, self._att = step_dynamics(self._pos, self._vel, self._att, self._acc, self._omega, dt)
 
     def run_robot(self, dt):
-        self._pos, self._vel, self._att = self.step_dynamics(self._pos, self._vel, self._att, self._acc, self._omega, dt)
+        self._pos, self._vel, self._att = step_dynamics(self._pos, self._vel, self._att, self._acc, self._omega, dt)
 
     def run_anchor(self, dt):
         print("No movement.")
-
-    # Use States?
-    # where do i get ax, ay, and omega
-    # Should I move this to a different method?
-    # Should I save the states in this method?
-    def step_dynamics(self, pos, vel, att, acc, omega, dt):
-        x = pos[0] + vel[0] * dt
-        y = pos[1] + vel[1] * dt
-        theta = (att + dt * omega + 3.14159) % (2 * 3.14159) - 3.14159
-        vx = vel[0] + (math.cos(att) * acc[0] - math.sin(att) * acc[1]) * dt
-        vy = vel[1] + (math.sin(att) * acc[0] + math.cos(att) * acc[1]) * dt
-        return [x, y], [vx, vy], theta
