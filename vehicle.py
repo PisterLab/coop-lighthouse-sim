@@ -112,8 +112,8 @@ class Vehicle:
 
         #robot is stationary since it is an anchor
         self._pos = self._pos
-        self._vel = 0
-        self._acc = 0
+        self._vel = Vec3(0,0,0)
+        self._acc = Vec3(0,0,0)
 
         #record state
         self.posHist.append(self._pos)

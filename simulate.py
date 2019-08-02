@@ -12,6 +12,8 @@ from positioncontroller import PositionController
 from attitudecontroller import QuadcopterAttitudeControllerNested
 from mixer import QuadcopterMixer
 
+from measurement_handler import MeasurementHandler
+
 np.random.seed(0)
 
 useNestedAttControl = False
@@ -79,6 +81,15 @@ nRobots = 1
 lhLocations = [Vec3(0,0,0)]
 anchorLocations = [Vec3(0.5,0.5,0)]
 robotLocations = [Vec3(0,1,0)] 
+
+#controller initialization; one controller archetype for all quads
+inertiaMatrix = np.matrix([[Ixx, Ixy, Ixz], [Ixy, Iyy, Iyz], [Ixz, Iyz, Izz]])
+posControl = PositionController(posCtrlNatFreq, posCtrlDampingRatio)
+attController = QuadcopterAttitudeControllerNested(timeConstAngleRP, timeConstAngleY, timeConstRatesRP, timeConstRatesY)
+mixer = QuadcopterMixer(mass, inertiaMatrix, armLength, motSpeedSqrToTorque/motSpeedSqrToThrust)
+
+desPos = Vec3(1, 0, 0)
+
 #==============================================================================
 # initialize all quadcopters:
 #==============================================================================
@@ -101,26 +112,18 @@ for i in range(0,nLighthouses + nAnchors + nRobots):
         nRobots-=1
         initPos = robotLocations[nLighthouses]
 
-    inertiaMatrix = np.matrix([[Ixx, Ixy, Ixz], [Ixy, Iyy, Iyz], [Ixz, Iyz, Izz]])
-    quadrocopter = Vehicle(mass, inertiaMatrix, omegaSqrToDragTorque, stdDevTorqueDisturbance)
+    #TODO: make this a function of drone type and location and have it return a quad object
+    quadrocopter = Vehicle(mass, inertiaMatrix, omegaSqrToDragTorque, stdDevTorqueDisturbance,"6dof", droneType)
 
     quadrocopter.add_motor(Vec3( armLength, 0, 0), Vec3(0,0,-1), motMinSpeed, motMaxSpeed, motSpeedSqrToThrust, motSpeedSqrToTorque, motTimeConst, motInertia)
     quadrocopter.add_motor(Vec3( 0, armLength, 0), Vec3(0,0, 1), motMinSpeed, motMaxSpeed, motSpeedSqrToThrust, motSpeedSqrToTorque, motTimeConst, motInertia)
     quadrocopter.add_motor(Vec3(-armLength, 0, 0), Vec3(0,0,-1), motMinSpeed, motMaxSpeed, motSpeedSqrToThrust, motSpeedSqrToTorque, motTimeConst, motInertia)
     quadrocopter.add_motor(Vec3( 0,-armLength, 0), Vec3(0,0, 1), motMinSpeed, motMaxSpeed, motSpeedSqrToThrust, motSpeedSqrToTorque, motTimeConst, motInertia)
 
-    posControl = PositionController(posCtrlNatFreq, posCtrlDampingRatio)
-    attController = QuadcopterAttitudeControllerNested(timeConstAngleRP, timeConstAngleY, timeConstRatesRP, timeConstRatesY)
-    mixer = QuadcopterMixer(mass, inertiaMatrix, armLength, motSpeedSqrToTorque/motSpeedSqrToThrust)
-
-    desPos = Vec3(1, 0, 0)
-
     quadrocopter.set_position(initPos)
     quadrocopter.set_velocity(Vec3(0, 0, 0))
-
     quadrocopter.set_attitude(Rotation.identity())
         
-
     #start at equilibrium rates:
     quadrocopter._omega = Vec3(0,0,0)
 
@@ -151,11 +154,15 @@ estPosHistory = np.zeros([numSteps,3])
 estVelHistory = np.zeros([numSteps,3])
 estAttHistory = np.zeros([numSteps,3])
 
+#measurement handler initialization
+measHandler = MeasurementHandler(robotDict.values())
+
 while index < numSteps:
 
     #traverse dict of robots
     for quadrocopter in robotDict.values():
         #define commands:
+
         accDes = posControl.get_acceleration_command(desPos, quadrocopter._pos, quadrocopter._vel)
         if disablePositionControl:
             accDes *= 0 #disable position control
@@ -168,11 +175,19 @@ while index < numSteps:
         #run the simulator
         quadrocopter.run(dt, motForceCmds, t)
 
-        #check for lighthouse measurements that have occured
-
-
-        #run the estimator
+        #run kalman prediction step
         quadrocopter.kalman_predict(dt)
+
+
+    #after all quads have moved check for measurements and update measurements
+    for quadrocopter in robotDict.values():
+
+        #check for lighthouse measurements that have occured
+        measurement = measHandler.get_measurement(quadrocopter)
+        if measurement:
+            print(measurement)
+
+        #run the kalman update step
         quadrocopter.kalman_update(dt)
 
     t += dt
@@ -184,7 +199,7 @@ while index < numSteps:
    
 fig, ax = plt.subplots(6,1, sharex=True)
 
-#TODO: get histories from vehicle objects and turn this into a function that plots a specific robot
+#turn into a function for plotting one robot
 posHistory = quadrocopter.get_pos_hist()
 times = quadrocopter.get_times()
 velHistory = quadrocopter.get_vel_hist()
