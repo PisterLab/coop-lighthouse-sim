@@ -4,12 +4,13 @@ import numpy as np
 from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py3dmath
 import copy
 import math
+from utils import DroneType, StepDynamics
 
 '''
 class Estimator3Dof:
 
 	def __init__(self, pos = Vec3(0,0,0), vel = Vec3(0,0,0), att=Rotation.identity(),d = Vec3(0,0,0), drone_type= DroneType.robot_drone):
-		
+
 		self._stateHistP = []
 		self._posNoise = [0.05,0.05]
 		self._velNoise = [0.001,0.001]
@@ -17,10 +18,10 @@ class Estimator3Dof:
 		self._Pm = np.diag([self._posNoise[0], self._posNoise[1], self._thetNoise, self._velNoise[0], self._velNoise[1]])
 		self._Pp = np.zeros((5,5))
 		self._drone_type = drone_type
-		self._state_m= np.array([pos[0] + np.random.rand() * self._posNoise[0], pos[1] + np.random_rand() * self._posNoise[2], att.to_euler_YPR()[0] + np.randome.rand() * self._thetNoise])
+		self._state_m= np.array([pos[0] + np.random.rand() * self._posNoise[0], pos[1] + np.random_rand() * self._posNoise[2], att.to_euler_YPR()[0] + np.random.rand() * self._thetNoise, vel[0] + np.random.rand() * self._velNoise[0], vel[1] + np.random.rand() + self._velNoise[1]])
 		self._state_p = self._state_m
 
-	def linearizeDynamics(self, accImu, gyroImu, dt):
+	def linearizeDynamics(self, accImu, omegaImu, magImu, dt):
 		A = [[1, 0, 0, dt, 0],
              [0, 1, 0, 0, dt],
              [0, 0, 1, 0, 0],
@@ -31,20 +32,18 @@ class Estimator3Dof:
 
 		return A
 
-	def kalmanPredict(self, accImu, gyroImu, dt, measurement):
-		if self._drone_type == DroneType.lighthouse_drone:
-			self.kalmanPredictLighthouse(accImu, gyroImu, dt, measurement)
+	def kalmanPredict(self, accImu, omegaImu, magImu, dt, measurement):
+		if self._drone_type == DroneType.lighthouse_drone or self._drone_type == DroneType.robot_drone:
+			self.kalmanPredictLighthouse(accImu, omegaImu, dt, measurement)
 		elif self._drone_type == DroneType.anchor_drone:
-			self.kalmandPredictAnchor(accImu, gyroImu, dt, measurement)
-		else:
-			self.kalmanPredictRobot(accImu, gyroImu, dt, measurement)
+			self.kalmandPredictAnchor(accImu, omegaImu, dt, measurement)
 
 
-	def kalmanPredictLighthouse(self, accImu, gyroImu, dt, measurement):
+	def kalmanPredictLighthouse(self, accImu, omegaImu, magImu, dt, measurement):
 		#linearize A matrix
 		A = self.linearizeDynamics(accImu, gyroImu,dt)
 
-		#process noise 
+		#process noise
 		L = [[dt, 0, 0, 0, 0],
              [0, dt, 0, 0, 0],
              [0, 0, dt, 0, 0],
@@ -55,67 +54,129 @@ class Estimator3Dof:
 		#covariance update
 		self._Pp = A * self._Pm * A.T + L * Q * L.T
 
-		if measurement[0] == None:
-			# calc noise corrupted measurement
-			self._stateHistP.append(self._stateHistP)
-            #self._state_p does not change
-            #self._Pm does not change
-
-		else:
+		if measurement != None:
         	# lighthouse measurement is available
 
 			x_a = measurement[1][0]
 			y_a = measurement[1][1]
 
 
-		# calculate noise corrupted measurement
-		c_noise = np.random.randn() * .001  # compass noise
-		l_noise = np.random.randn() * math.sqrt(self._Pp[2][2])  # lighthouse noise
-		sig_l = math.sqrt(self._Pp[2][2])
-		# l_noise = randn * compass_n
-		# l_noise = xp_obj.theta - phi     # this is the actual error of lighthouse i believe
-
-		z = measurement[0]
-
-		# calculate H
-		# TODO: Switch to transposing function
-		r = np.linalg.norm(np.array([self._state_p[0:2]]).T - [[x_a], [y_a]])
-		angle = np.arctan2(self._state_p[1] - y_a, self._state_p[0] - x_a)
-		H_mat = np.array([[-np.sin(angle) / r, np.cos(angle) / r, 0, 0, 0],
-		                   [0, 0, 1, 0, 0]])
+            # calculate noise corrupted measurement
+            c_noise = np.random.randn() * .001  # compass noise
+            l_noise = np.random.randn() * math.sqrt(self._Pp[2][2])  # lighthouse noise
+            sig_l = math.sqrt(self._Pp[2][2])
+            # l_noise = randn * compass_n
+            # l_noise = xp_obj.theta - phi     # this is the actual error of lighthouse i believe
 
 
-		# calculate M. I could potentially add two more entries: var(x_a), var(y_a)
-		M = np.array([[1, 0], [0, 1]])
+            z = [measurement[0], magImu]
 
 
-		# calculate zhat
-		zhat = np.array([[angle], [self._state_p[2]]])
+            # calculate H
+            # TODO: Switch to transposing function
+            r = np.linalg.norm(np.array([self._state_p[0:2]]).T - [[x_a], [y_a]])
+            angle = np.arctan2(self._state_p[1] - y_a, self._state_p[0] - x_a)
+            H_mat = np.array([[-np.sin(angle) / r, np.cos(angle) / r, 0, 0, 0],
+                               [0, 0, 1, 0, 0]])
 
 
-		# calculate R(noise covariance matrix)
-		compass_w = 0.001 * 0.001
-		R_mat = [[sig_l * sig_l, 0], [0, compass_w]]
+			# calculate M. I could potentially add two more entries: var(x_a), var(y_a)
+			M = np.array([[1, 0], [0, 1]])
 
 
-		# Kalman gain
-		# TODO: Switch to transposing function
-		kalman_gain = np.dot(np.dot(self._Pp, H_mat.T), np.linalg.inv(
-		    np.dot(np.dot(H_mat, self._Pp), H_mat.T) + np.dot(np.dot(M, R_mat), M.T)))
+            # calculate zhat
+            zhat = np.array([[angle], [self._state_p[2]]])
+
+
+			# calculate R(noise covariance matrix)
+			compass_w = 0.001 * 0.001
+			R_mat = [[sig_l * sig_l, 0], [0, compass_w]]
+
+
+            # Kalman gain
+            # TODO: Switch to transposing function
+            kalman_gain = np.dot(np.dot(self._Pp, H_mat.T), np.linalg.inv(
+                np.dot(np.dot(H_mat, self._Pp), H_mat.T) + np.dot(np.dot(M, R_mat), M.T)))
+
+		diff = []
+
+        if measurement:
+            diff.append(z[0] - zhat[0])
+            diff.append(z[1] - zhat[1])
+			diff[0] = ((diff[0] + PI) % (2 * PI)) - PI
+            diff[1] = ((diff[1] + PI) % (2 * PI)) - PI
+		else:
+			diff.append(z[0] - zhat[0])
+            diff[0] = ((diff[0] + PI) % (2 * PI)) - PI
+
+        # TODO: Switch to transposing function
+        xp_vec_trans = np.array([self._state_p][:]).T
+
+        k_diff_trans = np.dot(kalman_gain, diff)
+
+        # TODO: Switch to transposing function
+        if len(np.shape(k_diff_trans)) == 1:
+            k_diff_trans = np.array([k_diff_trans]).T
+        add_xm_vec = np.array(xp_vec_trans + k_diff_trans)
+
+        self._state_m = add_xm_vec
+
+        # Pm
+        self._Pm = np.dot(np.eye(5) - np.dot(kalman_gain, H_mat), self._Pp)
+
+        # calculates anchor measurements based on the true theta state of the
+        # robot. X_a is the set of anchor point locations.
+
+	def kalmanPredictAnchor(self, accImu, omegaImu, magImu, dt, measurement):
+
+
+        if measurement != None:
+            h = np.arctan2(self._state_p[1] - self.measurement[1][0], self._state_p[0] - self.measurement[1][2])
+
+            lighthouse_xy = self.measurement[1]
+
+            r = np.linalg.norm(self._state_p[0:2] - lighthouse_xy)
+            angle = ((np.arctan2(self._state_p[1] - lighthouse_xy[1], self._state_p[0] - lighthouse_xy[0]) + PI) % (2*PI)) - PI
+            H = (1/r) * np.array([-np.sin(angle), np.cos(angle)])
+            # H = [-(x_p(2,i)-y_l(i))/norm(x_p(:,i)-X_l(:,i))^2 , (x_p(1,i)-x_l(i))/norm(x_p(:,i)-X_l(:,i))^2;
+            #      -10*(x_p(1,i)-x_l(i))/(log(10)* norm(x_p(:,i)-X_l(:,i))^2), -10*(x_p(2,i)-y_l(i))/(log(10)* norm(x_p(:,i)-X_l(:,i))^2)];
+
+
+            W = np.array([[(self._state_p[1] - lighthouse_xy[1]) / np.power(np.linalg.norm(self._state_p - lighthouse_xy), 2), -(self._state_p[0] - lighthouse_xy[0]) / np.power(np.linalg.norm(self._state_p[0:2] - lighthouse_xy), 2), 1, 0],
+                            [10 * (self._state_p[0] - lighthouse_xy[0]) / (np.log(10) * np.power(np.linalg.norm(self._state_p[0:2] - lighthouse_xy), 2)), 10*(self._state_p[1]-lighthouse_xy[1]) / (np.log(10) * np.power(np.linalg.norm(self._state_p[0:2] - lighthouse_xy), 2)), 0 ,1]])
+
+            P_l = np.diag([.05**2, .05**2, (1.5 * 3.1415 / 180)**2])
+
+            R = np.array([np.append(P_l[0,:],[0]),
+                        np.append(P_l[1,:], [0]),
+                        np.append(P_l[2,:], [0]),
+                        [0,0,0,10**2]])
+
+            K = self._Pp[0:2, 0:2] @ H.T @ np.linalg.inv(H @ self._Pp[0:2, 0:2] @ H.T + W @ R @ W.T)
+            K = K[:,None]
+
+            # is the kalman gain helpful?
+
+
+
+            z_h_diff = ((z-h + PI) % (2*PI)) - PI
+
+
+            new_xm_xy = np.array(self._state_p[0:2][:,None] + K * z_h_diff)
+            self._state_p[0:2] = new_xm_xy
+
+            new_Pm = np.zeros((5,5))
+            new_Pm[0:2, 0:2] = np.array((np.identity(2) - K @ np.array([H])) @ self._Pp[0:2, 0:2])
+            self._Pm = new_Pm
 
 
 
 
-	def kalmanPredictAnchor(self, accImu, gyroImu, dt, measurement):
-		# TODO: fill in
-		return
-
-	def kalmanPredictRobot(self, accImu, gyroImu, dt, measurement):
-		# TODO: fill in
-		return
-
-	def kalmanUpdate(self, dt):
-		self._state_m = copy.deepcopy(self._state_p)	
+	def kalmanUpdate(self, accImu, omegaImu, dt):
+		pos, vel, theta = Vehicle.step_dynamics(self._state_m[0:2], self._state_m[3:], self._state_m[2], accImu, omegaImu, dt)
+		self._state_p = pos + [theta] + vel
+		self._stateHistP.append(self._state_p)
+		self._Pp = copy.deepcopy(self._Pm)
 
 '''
 
@@ -138,7 +199,7 @@ class Estimator6Dof:
 		self._inertia = inertiaMatrix
 		self._omegaSqrToDragTorque = omegaSqrToDragTorque
 		self._disturbanceTorqueStdDev = disturbanceTorqueStdDev
-		self._state_m= State(pos,vel,d,att)
+		self._state_m = State(pos,vel,d,att)
 		self._state_p = State(pos,vel,d,att)
 		self._Pp = None
 		self._Pm = np.eye(9)*0.01
@@ -146,7 +207,7 @@ class Estimator6Dof:
 		self._posNoise = [0.01,0.01,0.01]
 		self._velNoise = [0.01,0.01,0.01]
 		self._dNoise = [0.01,0.01,0.01]
-		self._debug = False 
+		self._debug = False
 		#state vars
 
 	def debugLinearization(self):
@@ -160,7 +221,7 @@ class Estimator6Dof:
 
 		A_pos = np.eye(3)
 		A_d = np.eye(3)
-			
+
 		#position to velocity model
 		A_posvel = self._state_m.att.to_rotation_matrix()*dt
 		#print(self._state_m.att.to_rotation_matrix)
@@ -173,8 +234,8 @@ class Estimator6Dof:
 
 		#dynamics are R*(I + |_del_|) * vel
 		#print(self._state_m.vel.to_array())
-		grad_d0 = self._state_m.att.to_rotation_matrix()*d0*self._state_m.vel.to_array() * dt 
-		grad_d1 = self._state_m.att.to_rotation_matrix()*d1*self._state_m.vel.to_array() * dt 
+		grad_d0 = self._state_m.att.to_rotation_matrix()*d0*self._state_m.vel.to_array() * dt
+		grad_d1 = self._state_m.att.to_rotation_matrix()*d1*self._state_m.vel.to_array() * dt
 		grad_d2 = self._state_m.att.to_rotation_matrix()*d2*self._state_m.vel.to_array() * dt
 
 
@@ -185,8 +246,8 @@ class Estimator6Dof:
 
 		#velocity from attitude error = -g*(-[del x])*R_T * e3
 		grad_d0 = 9.81*d0*self._state_m.att.to_rotation_matrix().T*Vec3(0,0,1).to_array() * dt
-		grad_d1 = 9.81*d1*self._state_m.att.to_rotation_matrix().T*Vec3(0,0,1).to_array() * dt 
-		grad_d2 = 9.81*d2*self._state_m.att.to_rotation_matrix().T*Vec3(0,0,1).to_array() * dt 
+		grad_d1 = 9.81*d1*self._state_m.att.to_rotation_matrix().T*Vec3(0,0,1).to_array() * dt
+		grad_d2 = 9.81*d2*self._state_m.att.to_rotation_matrix().T*Vec3(0,0,1).to_array() * dt
 		A_velatt = np.column_stack((grad_d0,grad_d1,grad_d2))
 
 		#att error from att error. this is from the covariance update paper
@@ -195,7 +256,7 @@ class Estimator6Dof:
 
 		A_attatt = mat
 
-		#create A matrix 
+		#create A matrix
 		A = np.block([[A_pos, A_posvel, A_pos_att],
 					  [np.zeros((3,3)), A_velvel, A_velatt],
 					  [np.zeros((3,3)), np.zeros((3,3)), A_attatt]])
@@ -207,7 +268,7 @@ class Estimator6Dof:
 		#linearize A matrix
 		A = self.linearizeDynamics(accImu, gyroImu,dt)
 
-		#process noise 
+		#process noise
 		L = np.diag([dt, dt, dt, dt, dt, dt, dt, dt, dt])
 
 		Q = np.diag(np.concatenate((self._posNoise, self._velNoise, self._dNoise)))
@@ -218,11 +279,11 @@ class Estimator6Dof:
 
 		#print(A)
 		#position prediction
-		dposBody = self._state_m.vel * dt + Vec3(0,0,accImu[2]*dt*dt / 2.0) 
+		dposBody = self._state_m.vel * dt + Vec3(0,0,accImu[2]*dt*dt / 2.0)
 		#self._state_p.pos = self._state_m.att * dposBody - Vec3(0,0,9.81*dt*dt / 2.0)
 		self._state_p.pos = self._state_m.pos + self._state_m.att * dposBody - Vec3(0,0,9.81*dt*dt / 2.0)
-		
-		#velocity prediction: zacc - gyro x vel - g_body 
+
+		#velocity prediction: zacc - gyro x vel - g_body
 		gyroCross = gyroImu.to_cross_product_matrix()
 		self._state_p.vel = self._state_m.vel +  dt*(Vec3(0,0,accImu[2])-gyroCross*self._state_m.vel - self._state_m.att.inverse() * Vec3(0,0,9.81))
 
@@ -231,15 +292,15 @@ class Estimator6Dof:
 		self._state_p.att = self._state_m.att*gyroRot
 		self._stateHistP.append(self._state_p)
 
-		#compare linearized dynamics to actual dynamics 
+		#compare linearized dynamics to actual dynamics
 		#gyroRot = Rotation.from_rotation_vector(gyroImu*dt)
 		#self._state_p.devectorize(A*self._state_m.getVector(),self._state_m.att*gyroRot)
-		
+
 
 
 	def kalmanUpdate(self, dt):
 		#no measurement update created yet
-		self._state_m = copy.deepcopy(self._state_p)
+		self._state_p = copy.deepcopy(self._state_m)
 		self._Pm = self._Pp
 
 
@@ -259,8 +320,5 @@ class State:
 		self.vel = Vec3(state_vector[3,0], state_vector[4,0],state_vector[5,0])
 		self.d = Vec3(state_vector[6,0], state_vector[7,0], state_vector[8,0])
 
-		
+
 		self.att = att
-
-
-
