@@ -48,4 +48,20 @@ class QuadcopterAttitudeControllerNested:
         
         return desAngAcc
         
-        
+#simple angular velocity controller      
+class QuadcopterAngularVelocityController:
+    def __init__(self, timeConstantAngleRollPitch, timeConstantAngleYaw, timeConstantRateRollPitch, timeConstantRateYaw):
+        #A simple, nested controller.
+        self._timeConstAngle_RP = timeConstantAngleRollPitch
+        self._timeConstAngle_Y  = timeConstantAngleYaw
+        self._timeConstRate_RP = timeConstantRateRollPitch
+        self._timeConstRate_Y  = timeConstantRateYaw
+        return
+
+    def get_angular_acceleration(self,desAngVel,curAngVel):
+        #Step 2: run the rates controller:
+        # 2.1: Compute desired angular acceleration
+        desAngAcc = desAngVel - curAngVel
+        desAngAcc.x /= self._timeConstRate_RP
+        desAngAcc.y /= self._timeConstRate_RP
+        desAngAcc.z /= self._timeConstRate_Y

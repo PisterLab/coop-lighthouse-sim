@@ -4,15 +4,17 @@ from __future__ import print_function, division
 
 import numpy as np
 import matplotlib.pyplot as plt
+from lh_utils import DroneType
 
 from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py3dmath
-from vehicle import Vehicle, DroneType
+from vehicle import Vehicle 
 
 from positioncontroller import PositionController
-from attitudecontroller import QuadcopterAttitudeControllerNested
+from attitudecontroller import QuadcopterAttitudeControllerNested, QuadcopterAngularVelocityController
 from mixer import QuadcopterMixer
 
 from measurement_handler import MeasurementHandler
+
 
 np.random.seed(0)
 
@@ -87,7 +89,7 @@ inertiaMatrix = np.matrix([[Ixx, Ixy, Ixz], [Ixy, Iyy, Iyz], [Ixz, Iyz, Izz]])
 posControl = PositionController(posCtrlNatFreq, posCtrlDampingRatio)
 attController = QuadcopterAttitudeControllerNested(timeConstAngleRP, timeConstAngleY, timeConstRatesRP, timeConstRatesY)
 mixer = QuadcopterMixer(mass, inertiaMatrix, armLength, motSpeedSqrToTorque/motSpeedSqrToThrust)
-
+angVelContoller = QuadcopterAngularVelocityController(timeConstAngleRP, timeConstAngleY, timeConstRatesRP, timeConstRatesY)
 desPos = Vec3(1, 0, 0)
 
 #==============================================================================
@@ -164,12 +166,18 @@ while index < numSteps:
         #define commands:
 
         accDes = posControl.get_acceleration_command(desPos, quadrocopter._pos, quadrocopter._vel)
-        if disablePositionControl:
+        if disablePositionControl or quadrocopter.drone_type == DroneType.lighthouse_drone:
             accDes *= 0 #disable position control
             
         #mass-normalised thrust:
         thrustNormDes = accDes + Vec3(0, 0, 9.81)
-        angAccDes = attController.get_angular_acceleration(thrustNormDes, quadrocopter._att, quadrocopter._omega)
+
+        #lighthouse robot spins, normal robot goes to point
+        if quadrocopter.drone_type == DroneType.robot_drone:
+            angAccDes = attController.get_angular_acceleration(thrustNormDes, quadrocopter._att, quadrocopter._omega)
+        else:
+            angAccDes = angVelContoller.get_angular_acceleration(Vec3(0,0,1),quadrocopter._omega)
+        print(angAccDes)
         motForceCmds = mixer.get_motor_force_cmd(thrustNormDes, angAccDes)
         
         #run the simulator

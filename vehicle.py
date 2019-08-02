@@ -6,8 +6,8 @@ from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py
 from motor import Motor
 from imu import IMU, IMU2D
 from Estimator import Estimator6Dof #, Estimator3Dof
-from utils import DroneType
-from utils import step_dynamics
+from lh_utils import DroneType
+from lh_utils import step_dynamics
 
 class Vehicle:
     def __init__(self, mass, inertiaMatrix, omegaSqrToDragTorque, disturbanceTorqueStdDev,estimator = "6dof",drone_type=DroneType.robot_drone):

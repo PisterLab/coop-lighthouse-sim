@@ -1,9 +1,9 @@
 import enum
 
 class DroneType(enum.Enum):
-    lighthouse_robot = enum.auto()      # localizing itself and localizing anchor robots
-    measurement_robot = enum.auto()     # only taking measurements
-    anchor_robot = enum.auto()      # in place, acts as an anchor point
+    lighthouse_drone = enum.auto()      # localizing itself and localizing anchor robots
+    robot_drone = enum.auto()     # only taking measurements
+    anchor_drone = enum.auto()      # in place, acts as an anchor point
 
 def step_dynamics(pos, vel, att, acc, omega, dt):
     x = pos[0] + vel[0] * dt

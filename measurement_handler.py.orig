@@ -4,7 +4,7 @@ import numpy as np
 from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py3dmath
 import copy
 from vehicle import Vehicle
-from lh_utils import DroneType
+from utils import DroneType
 
 class MeasurementHandler:
 	def __init__(self, vehicles):
@@ -13,8 +13,14 @@ class MeasurementHandler:
 		self._robot_drones = [drone for drone in self._vehicles if drone.drone_type == DroneType.robot_drone]
 		self._lighthouse_drones = [drone for drone in self._vehicles if drone.drone_type == DroneType.lighthouse_drone]
 		self._anchor_drones = [drone for drone in self._vehicles if drone.drone_type == DroneType.anchor_drone]
+<<<<<<< HEAD
+	
+		print([drone.drone_type for drone in self._vehicles])
+	
+=======
 
 
+>>>>>>> ae99e20c0a1b27a37a187f627d25d3b140ba85cb
 		#global list of current anchor, robot, and robot lighthouse locations
 		# self._currRobotLocations = []
 		# self._currLighthouseLocations =[]
