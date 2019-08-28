@@ -248,11 +248,13 @@ for quad in robotDict.values():
     position = quad.get_pos_hist()
     ax.plot(position[:,0], position[:,1])
 
-fig= plt.figure()
-ax = fig.add_subplot(111, projection='3d')
 for quad in robotDict.values():
+    fig= plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
     position = quad.get_pos_hist()
-    print()
-    ax.plot(position[:,0], position[:,1], position[:,2])
+    ax.plot(position[:,0], position[:,1], position[:,2], color='b')
+    est_pos = quad.get_est_pos_hist()
+    print("Est pos:", est_pos)
+    ax.plot(est_pos[:,0], est_pos[:,1], est_pos[:,2], color='r')
 
 plt.show()
