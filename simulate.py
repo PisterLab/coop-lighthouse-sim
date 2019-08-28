@@ -4,6 +4,7 @@ from __future__ import print_function, division
 
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 from py3dmath import Vec3, Rotation  # get from https://github.com/muellerlab/py3dmath
 from vehicle import Vehicle
@@ -246,5 +247,12 @@ ax = fig.add_subplot(111)
 for quad in robotDict.values():
     position = quad.get_pos_hist()
     ax.plot(position[:,0], position[:,1])
+
+fig= plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+for quad in robotDict.values():
+    position = quad.get_pos_hist()
+    print()
+    ax.plot(position[:,0], position[:,1], position[:,2])
 
 plt.show()
