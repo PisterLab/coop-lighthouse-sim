@@ -244,7 +244,7 @@ ax[3].set_ylabel('EstAtt')
 fig= plt.figure()
 ax = fig.add_subplot(111)
 for quad in robotDict.values():
-    postion = quad.get_pos_hist()
-    ax.plot(quad.get_pos_hist()[:,0],quad.get_pos_hist()[:,1])
+    position = quad.get_pos_hist()
+    ax.plot(position[:,0], position[:,1])
 
 plt.show()
