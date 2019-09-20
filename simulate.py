@@ -246,6 +246,10 @@ fig= plt.figure()
 ax = fig.add_subplot(111)
 for quad in robotDict.values():
     position = quad.get_pos_hist()
+    print("state truth pos:", position)
+    print("vel hist:")
+    for i in range(0, len(quad.velHist)):
+        print(quad.velHist[i].to_list())
     ax.plot(position[:,0], position[:,1])
 
 for quad in robotDict.values():
@@ -254,7 +258,6 @@ for quad in robotDict.values():
     position = quad.get_pos_hist()
     ax.plot(position[:,0], position[:,1], position[:,2], color='b')
     est_pos = quad.get_est_pos_hist()
-    print("Est pos:", est_pos)
     ax.plot(est_pos[:,0], est_pos[:,1], est_pos[:,2], color='r')
 
 plt.show()
