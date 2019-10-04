@@ -33,7 +33,7 @@ class Drone:
 
         self.sig_x0 = 0.05  # initial uncertainty of x
         self.sig_y0 = 0.05  # initial uncertainty of y
-        self.sig_th0 = 0.01  # initial uncertainty of theta
+        self.sig_th0 = 0.1  # initial uncertainty of theta
         self.sig_vx0 = 0.001  # initial uncertainty of vx
         self.sig_vy0 = 0.001  # initial uncertainty of vy
 
@@ -176,36 +176,34 @@ class Drone:
             y_a = self.meas_record[len(self.meas_record) - 1][3]
 
             # calculate noise corrupted measurement
-            c_noise = np.random.randn() * compass_n  # compass noise
-            l_noise = np.random.randn() * math.sqrt(self.Pp[k - 1][2][2])  # lighthouse noise
+            #c_noise = np.random.randn() * compass_n  # compass noise
+            xy_noise = np.random.randn() * .2  # lighthouse noise
             sig_l = math.sqrt(self.Pp[k - 1][2][2])
             # l_noise = randn * compass_n
             # l_noise = xp_obj.theta - phi     # this is the actual error of lighthouse i believe
 
-            z = np.array([[((phi + l_noise + PI) % (2 * PI)) - PI],
-                               [((self.state_truth_arr[k].theta + c_noise + PI) % (2 * PI)) - PI]])
+            z = np.array([((phi + xy_noise + PI) % (2 * PI)) - PI])
 
             # calculate H
             # TODO: Switch to transposing function
             r = np.linalg.norm(np.array([xp_vec[0:2]]).T - [[x_a], [y_a]])
             angle = np.arctan2(self.xp_obj.y - y_a, self.xp_obj.x - x_a)
-            H_mat = np.array([[-np.sin(angle) / r, np.cos(angle) / r, 0, 0, 0],
-                               [0, 0, 1, 0, 0]])
+            H_mat = np.array([[-np.sin(angle) / r, np.cos(angle) / r, 0, 0, 0]])
 
             # calculate M. I could potentially add two more entries: var(x_a), var(y_a)
-            M = np.array([[1, 0], [0, 1]])
+            M = np.array([[1, 0]])
 
             # calculate zhat
-            zhat = np.array([[angle], [self.xp_obj.theta]])
+            zhat = np.array([angle])
 
             # calculate R(noise covariance matrix)
             compass_w = 0.001 * 0.001
-            R_mat = [[sig_l * sig_l, 0], [0, compass_w]]
+            R_mat = np.array([[sig_l * sig_l, 0]])
 
             # Kalman gain
             # TODO: Switch to transposing function
             kalman_gain = np.dot(np.dot(self.Pp[k], H_mat.T), np.linalg.inv(
-                np.dot(np.dot(H_mat, self.Pp[k]), H_mat.T) + np.dot(np.dot(M, R_mat), M.T)))
+                np.dot(np.dot(H_mat, self.Pp[k]), H_mat.T) + np.dot((M * R_mat), M.T)))
         else:
             # calc noise corrupted measurement
             c_noise = np.random.rand() * compass_n
@@ -234,15 +232,8 @@ class Drone:
         # calculate measurement diff in order to wrap angles
         diff = []
 
-        if lighthouse_available:
-            diff.append(z[0] - zhat[0])
-            diff.append(z[1] - zhat[1])
-
-            diff[0] = ((diff[0] + PI) % (2 * PI)) - PI
-            diff[1] = ((diff[1] + PI) % (2 * PI)) - PI
-        else:
-            diff.append(z[0] - zhat[0])
-            diff[0] = ((diff[0] + PI) % (2 * PI)) - PI
+        diff.append(z[0] - zhat[0])
+        diff[0] = ((diff[0] + PI) % (2 * PI)) - PI
 
         # TODO: Switch to transposing function
         xp_vec_trans = np.array([xp_vec[:]]).T
@@ -416,36 +407,34 @@ class Drone:
             y_a = self.meas_record[len(self.meas_record) - 1][3]
 
             # calculate noise corrupted measurement
-            c_noise = np.random.randn() * compass_n  # compass noise
-            l_noise = np.random.randn() * math.sqrt(self.Pp[k - 1][2][2])  # lighthouse noise
+            #c_noise = np.random.randn() * compass_n  # compass noise
+            xy_noise = np.random.randn() * .2  # lighthouse noise
             sig_l = math.sqrt(self.Pp[k - 1][2][2])
             # l_noise = randn * compass_n
             # l_noise = xp_obj.theta - phi     # this is the actual error of lighthouse i believe
 
-            z = np.array([[((phi + l_noise + PI) % (2 * PI)) - PI],
-                          [((self.state_truth_arr[k].theta + c_noise + PI) % (2 * PI)) - PI]])
+            z = np.array([((phi + xy_noise + PI) % (2 * PI)) - PI])
             # calculate H
             # TODO: Switch to transposing function
             r = np.linalg.norm(np.array([xp_vec[0:2]]).T - [[x_a], [y_a]])
             angle = np.arctan2(self.xp_obj.y - y_a, self.xp_obj.x - x_a)
 
-            H_mat = np.array([[-np.sin(angle) / r, np.cos(angle) / r, 0, 0, 0],
-                              [0, 0, 1, 0, 0]])
+            H_mat = np.array([[-np.sin(angle) / r, np.cos(angle) / r, 0, 0, 0]])
 
             # calculate M. I could potentially add two more entries: var(x_a), var(y_a)
-            M = np.array([[1, 0], [0, 1]])
+            M = np.array([[1, 0]])
 
             # calculate zhat
-            zhat = np.array([[angle], [self.xp_obj.theta]])
+            zhat = np.array([[angle]])
 
             # calculate R(noise covariance matrix)
             compass_w = 0.001 * 0.001
-            R_mat = [[sig_l * sig_l, 0], [0, compass_w]]
+            R_mat = [[sig_l * sig_l, 0]]
 
             # Kalman gain
             # TODO: Switch to transposing function
             kalman_gain = np.dot(np.dot(self.Pp[k], H_mat.T), np.linalg.inv(
-                np.dot(np.dot(H_mat, self.Pp[k]), H_mat.T) + np.dot(np.dot(M, R_mat), M.T)))
+                np.dot(np.dot(H_mat, self.Pp[k]), H_mat.T) + np.dot((M * R_mat), M.T)))
 
         else:
             # calc noise corrupted measurement
@@ -475,15 +464,8 @@ class Drone:
         # calculate measurement diff in order to wrap angles
         diff = []
 
-        if lighthouse_available:
-            diff.append(z[0] - zhat[0])
-            diff.append(z[1] - zhat[1])
-
-            diff[0] = ((diff[0] + PI) % (2 * PI)) - PI
-            diff[1] = ((diff[1] + PI) % (2 * PI)) - PI
-        else:
-            diff.append(z[0] - zhat[0])
-            diff[0] = ((diff[0] + PI) % (2 * PI)) - PI
+        diff.append(z[0] - zhat[0])
+        diff[0] = ((diff[0] + PI) % (2 * PI)) - PI
 
         # TODO: Switch to transposing function
         xp_vec_trans = np.array([xp_vec[:]]).T
@@ -659,7 +641,7 @@ def compute_lighthouse_meas(state_truth, state_truth_prev, meas_record, state_es
     return lighthouse, phi_final, meas_record
 
 num_drones = 4
-iterations = 100
+iterations = 10
 errors = []
 
 plot_save = False
@@ -667,6 +649,7 @@ plot_run = True
 
 for i in range(iterations):
 
+    print(i)
     timesteps = 5000
     lighthouse_dt = .3      # UNUSED
     dt = 0.01
